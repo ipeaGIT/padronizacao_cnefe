@@ -12,5 +12,5 @@ source("R/upload.R", encoding = "UTF-8")
 
 list(
   tar_target(padronizacao, padronizar_cnefe(), format = "file"),
-  tar_target(upload, upload_arquivos(padronizacao), format = "url")
+  tar_target(upload, upload_arquivos(padronizacao))
 )
