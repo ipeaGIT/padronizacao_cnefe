@@ -77,8 +77,6 @@ source("_targets.R")
 tar_visnetwork(targets_only = TRUE)
 ```
 
-    #> - The project is out-of-sync -- use `]8;;ide:run:renv::status()renv::status()]8;;` for details.
-
 <img src="figures/README-graph-outdated-1.png" width="100%" />
 
 Note que todos os vértices do grafo estão marcados como desatualizados.
@@ -99,8 +97,6 @@ para checar se os vértices estão atualizados:
 ``` r
 tar_visnetwork(targets_only = TRUE)
 ```
-
-    #> - The project is out-of-sync -- use `]8;;ide:run:renv::status()renv::status()]8;;` for details.
 
 <img src="figures/README-graph-updated-1.png" width="100%" />
 
