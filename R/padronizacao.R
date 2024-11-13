@@ -106,17 +106,20 @@ padronizar_cnefe <- function() {
   cnefe_arrow <- arrow::as_arrow_table(cnefe, schema = schema_cnefe)
 
   dir_dados <- file.path(
-    Sys.getenv("USERS_DATA_PATH"),
-    "CGDTI/IpeaDataLab/projetos/geolocalizacao/cnefe_padronizado_tmpdir"
+    Sys.getenv("PUBLIC_DATA_PATH"),
+    "CNEFE/cnefe_padrao_geocodebr"
   )
+
+  dir_ano <- file.path(dir_dados, "2022")
+  if (!dir.exists(dir_ano)) dir.create(dir_ano)
 
   arrow::write_dataset(
     cnefe_arrow,
-    path = dir_dados,
+    path = dir_ano,
     format = "parquet",
     partitioning = "estado",
     hive_style = TRUE
   )
 
-  return(dir_dados)
+  return(dir_ano)
 }
