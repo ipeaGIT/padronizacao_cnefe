@@ -1,6 +1,6 @@
 {
   "R": {
-    "Version": "4.4.1",
+    "Version": "4.4.2",
     "Repositories": [
       {
         "Name": "CRAN",
@@ -376,9 +376,15 @@
     },
     "enderecobr": {
       "Package": "enderecobr",
-      "Version": "0.2.0",
-      "Source": "Repository",
-      "Repository": "RSPM",
+      "Version": "0.2.1.9000",
+      "Source": "GitHub",
+      "RemoteType": "github",
+      "RemoteHost": "api.github.com",
+      "RemoteRepo": "enderecobr",
+      "RemoteUsername": "ipeagit",
+      "RemotePkgRef": "ipeagit/enderecobr@9a9ea3b",
+      "RemoteRef": "9a9ea3b",
+      "RemoteSha": "9a9ea3bd3282af0ba60a3cf2cc3a2becd0dcdf04",
       "Requirements": [
         "R",
         "checkmate",
@@ -389,7 +395,7 @@
         "stringr",
         "tibble"
       ],
-      "Hash": "7f867231a2e699d85682dc118066e239"
+      "Hash": "7d1d66895829a8beba80f0110f66c767"
     },
     "evaluate": {
       "Package": "evaluate",

@@ -53,7 +53,10 @@ padronizar_cnefe <- function() {
   cnefe[, c("nom_titulo_seglogr", "nom_seglogr") := NULL]
   cnefe[, c("nwords_titulo", "comeco_logr", "juntar") := NULL]
 
-  cnefe[, estado := enderecobr::padronizar_estados(code_state)]
+  cnefe[
+    ,
+    estado := enderecobr::padronizar_estados(code_state, formato = "sigla")
+  ]
   cnefe[, code_state := NULL]
 
   cnefe[, municipio := enderecobr::padronizar_municipios(code_muni)]
