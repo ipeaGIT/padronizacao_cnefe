@@ -1,4 +1,5 @@
-padronizar_cnefe <- function() {
+# versao_dados <- tar_read(versao_dados)
+padronizar_cnefe <- function(versao_dados) {
   colunas_a_manter <- c(
     "code_address",       # identificador
     "code_state",         # estado
@@ -16,6 +17,13 @@ padronizar_cnefe <- function() {
 
   cnefe <- ipeadatalake::ler_cnefe(2022, colunas = colunas_a_manter)
 
+  # mantemos apenas endereços com nv_geo_coord <= 4, visto que 5 representa uma
+  # localidade (similar a um bairro) e 6 representa um setor censitário (que
+  # pode ter dimensões gigantescas, principalmente em áreas rurais, mais
+  # propensas a não ter endereços precisos a nível de rua)
+
+  cnefe <- filter(cnefe, nv_geo_coord <= 4)
+
   # se número == 0, setar NA, que vira S/N depois
 
   cnefe <- mutate(
@@ -27,6 +35,13 @@ padronizar_cnefe <- function() {
   # logradouro. isso acontece mesmo quando o título do logradouro tem até 3
   # palavras. só podemos juntar o nome com o titulo nos casos em que essa
   # repetição não ocorre
+  #
+  # o cnefe pode conter também linhas duplicadas. na tabela original, esses
+  # registros servem pra indicar quando o mesmo endereço/estabelecimento pode
+  # possuir finalidades diferentes (e.g. uma linha se refere ao endereço quando
+  # usado como domicílio particular, outra ao endereço quando usado como
+  # estabelcimento de saúde). como no nosso caso essa diferença não importa,
+  # mantemos apenas registros únicos.
 
   cnefe <- mutate(
     cnefe,
@@ -34,6 +49,8 @@ padronizar_cnefe <- function() {
   )
 
   cnefe <- data.table::setDT(collect(cnefe))
+  cnefe <- unique(cnefe)
+  cnefe[, c("code_address", "nv_geo_coord") := NULL]
 
   cnefe[nwords_titulo == 1, comeco_logr := stringr::word(nom_seglogr, 1, 1)]
   cnefe[nwords_titulo == 2, comeco_logr := stringr::word(nom_seglogr, 1, 2)]
@@ -67,31 +84,29 @@ padronizar_cnefe <- function() {
   cnefe[, numero := enderecobr::padronizar_numeros(num_adress)]
   cnefe[, num_adress := NULL]
 
-  cnefe[
-    ,
-    `:=`(
-      logradouro_completo = paste(nom_tipo_seglogr, nome_logradouro, numero),
-      logradouro_sem_numero = paste(nom_tipo_seglogr, nome_logradouro)
-    )
-  ]
+  cnefe[, nv_geo_coord := NULL]
+
+  cnefe[, logradouro_sem_numero := paste(nom_tipo_seglogr, nome_logradouro)]
 
   data.table::setnames(
     cnefe,
-    old = c("code_address", "desc_localidade", "nom_tipo_seglogr"),
-    new = c("codigo_endereco", "localidade", "tipo_logradouro")
+    old = c("desc_localidade", "nom_tipo_seglogr"),
+    new = c("localidade", "tipo_logradouro")
   )
 
   data.table::setcolorder(
     cnefe,
     c(
-      "codigo_endereco", "estado", "municipio", "localidade", "cep",
-      "tipo_logradouro", "nome_logradouro", "numero", "logradouro_sem_numero",
-      "logradouro_completo", "lon", "lat", "nv_geo_coord"
+      "estado", "municipio", "localidade", "cep", "tipo_logradouro",
+      "nome_logradouro", "numero", "logradouro_sem_numero", "lon", "lat"
     )
   )
 
+  cnefe <- cnefe[
+    order(estado, municipio, logradouro_sem_numero, numero, cep, localidade)
+  ]
+
   schema_cnefe <- arrow::schema(
-    codigo_endereco = arrow::int32(),
     estado = arrow::string(),
     municipio = arrow::string(),
     localidade = arrow::string(),
@@ -100,10 +115,8 @@ padronizar_cnefe <- function() {
     nome_logradouro = arrow::string(),
     numero = arrow::string(),
     logradouro_sem_numero = arrow::large_utf8(),
-    logradouro_completo = arrow::large_utf8(),
     lon = arrow::float64(),
-    lat = arrow::float64(),
-    nv_geo_coord = arrow::int8()
+    lat = arrow::float64()
   )
 
   cnefe_arrow <- arrow::as_arrow_table(cnefe, schema = schema_cnefe)
@@ -113,7 +126,7 @@ padronizar_cnefe <- function() {
     "CNEFE/cnefe_padrao_geocodebr"
   )
 
-  dir_ano <- file.path(dir_dados, "2022")
+  dir_ano <- file.path(dir_dados, "2022", versao_dados)
   if (!dir.exists(dir_ano)) dir.create(dir_ano)
 
   arrow::write_dataset(
