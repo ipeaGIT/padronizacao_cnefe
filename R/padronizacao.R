@@ -24,7 +24,9 @@ padronizar_cnefe <- function(versao_dados) {
 
   cnefe <- filter(cnefe, nv_geo_coord <= 4)
 
-  # se número == 0, setar NA, que vira S/N depois
+  # se número == 0, setar NA. mantemos como numérico, pois durante o processo de
+  # geolocalização podemos usá-los para fazer uma interpolação, e para isso
+  # precisamos que seja numérico.
 
   cnefe <- mutate(
     cnefe,
@@ -81,10 +83,8 @@ padronizar_cnefe <- function(versao_dados) {
 
   cnefe[, cep := enderecobr::padronizar_ceps(cep)]
 
-  cnefe[, numero := enderecobr::padronizar_numeros(num_adress)]
+  cnefe[, numero := num_adress]
   cnefe[, num_adress := NULL]
-
-  cnefe[, nv_geo_coord := NULL]
 
   cnefe[, logradouro_sem_numero := paste(nom_tipo_seglogr, nome_logradouro)]
 
@@ -113,7 +113,7 @@ padronizar_cnefe <- function(versao_dados) {
     cep = arrow::string(),
     tipo_logradouro = arrow::string(),
     nome_logradouro = arrow::string(),
-    numero = arrow::string(),
+    numero = arrow::int32(),
     logradouro_sem_numero = arrow::large_utf8(),
     lon = arrow::float64(),
     lat = arrow::float64()
@@ -126,8 +126,8 @@ padronizar_cnefe <- function(versao_dados) {
     "CNEFE/cnefe_padrao_geocodebr"
   )
 
-  dir_ano <- file.path(dir_dados, "2022", versao_dados)
-  if (!dir.exists(dir_ano)) dir.create(dir_ano)
+  dir_ano <- file.path(dir_dados, "2022", versao_dados, "microdados")
+  if (!dir.exists(dir_ano)) dir.create(dir_ano, recursive = TRUE)
 
   arrow::write_dataset(
     cnefe_arrow,

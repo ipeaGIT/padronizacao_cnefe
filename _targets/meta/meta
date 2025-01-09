@@ -1,9 +1,12 @@
 name|type|data|command|depend|seed|path|time|size|bytes|format|repository|iteration|parent|children|seconds|warnings|error
-erro_release_existente|function|130ff47e564502cb|||||||||||||||
-padronizacao|stem|3671ca148b8b63a9|0e8b7c33747183c6|8e5b25d7a72c51ea|704861656|//storage6/bases/DADOS/PUBLICO/CNEFE/cnefe_padrao_geocodebr/2022|t20077.5521277722s|a717eefe56c6557d|3013479341|file|local|vector|||2410.27|Potentially unsafe or invalid elements have been discarded from R metadata.ℹ Type externalptr If you trust the source, you can set optionsarrow.unsafe_metadata  TRUE to preserve them.. Potentially unsafe or invalid elements have been discarded from R metadata.ℹ Type externalptr If you trust the source, you can set optionsarrow.unsafe_metadata  TRUE to preserve them.. Potentially unsafe or invalid elements have been discarded from R metadata.ℹ Type externalptr If you trust the source, you can set optionsarrow.unsafe_metadata  TRUE to preserve them.|
-padronizar_cnefe|function|b99e4c83794033c8|||||||||||||||
+agregacao|stem|2539a8cd92e2e3a0|aa4113ef941682c6|c77b393dfbbe0deb|1879412536|//storage6/bases/DADOS/PUBLICO/CNEFE/cnefe_padrao_geocodebr/2022/v0.1.0/dados_agregados|t20097.74657506s|a10b0861f057ffab|0|file|local|vector|||1618.03||
+agregar_cnefe|function|d7dd755b7bc713ba|||||||||||||||
+erro_release_existente|function|d35fd80100a27227|||||||||||||||
+padronizacao|stem|076ff7c6a21a02da|0ecba72567bbd63e|3ff8839075727f85|704861656|//storage6/bases/DADOS/PUBLICO/CNEFE/cnefe_padrao_geocodebr/2022/v0.1.0/microdados|t20096.8136353088s|a10b0861f057ffab|0|file|local|vector|||1402.49|Potentially unsafe or invalid elements have been discarded from R metadata.ℹ Type externalptr If you trust the source, you can set optionsarrow.unsafe_metadata  TRUE to preserve them.. Potentially unsafe or invalid elements have been discarded from R metadata.ℹ Type externalptr If you trust the source, you can set optionsarrow.unsafe_metadata  TRUE to preserve them.. Potentially unsafe or invalid elements have been discarded from R metadata.ℹ Type externalptr If you trust the source, you can set optionsarrow.unsafe_metadata  TRUE to preserve them.|
+padronizar_cnefe|function|9e34d5efa12822b1|||||||||||||||
 readme_md|stem|e5a1fbdec487e9f3|4c59f2a2f407d2c0|6a4ed843d149cbe0|176917943|L:/Proj_acess_oport/git_daniel/padronizacao_cnefe/README.md|t20034.6035965355s|1d06a589a5a8b44c|1941|file|local|vector|||2.87||
 readme_rmd|stem|962f1868d0912bf5|cce0d512cba8c607|2c530c1562a7fbd1|1252109129|README.Rmd|t20034.5979051533s|22a797ef2cec3b34|2141|file|local|vector|||0||
-upload|stem|139a2f6791cedf6f|51c3c046d0ea6a59|dcd6c654c3a1b1b2|1202071109||t20077.5583804427s|b0c128ee413cce30|114|rds|local|vector|||499.42||
-upload_arquivos|function|ce7b0d2ab8367266|||||||||||||||
-versao_dados|stem|a235bfcf0c1a1b38|82ba280b69e1ae0d|2c530c1562a7fbd1|-959350309||t20096.779770097s|1e2e749c6d4ad693|59|rds|local|vector|||0||
+selecionar_colunas|function|9dc80c17c0de2fe5|||||||||||||||
+upload|stem|139a2f6791cedf6f|cc3abd545a920416|bb4aaa6aab12c694|1202071109||t20097.8238647921s|b0c128ee413cce30|114|rds|local|vector|||217.58||
+upload_arquivos|function|826f8f27831de3ab|||||||||||||||
+versao_dados|stem|dffd9a8ba3913627|a7d3180787f4b6c4|2c530c1562a7fbd1|-959350309||t20096.7981764067s|1e2e749c6d4ad693|59|rds|local|vector|||0||

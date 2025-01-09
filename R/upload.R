@@ -1,23 +1,7 @@
-# dir_dados <- tar_read(padronizacao)
-upload_arquivos <- function(dir_dados) {
+# dir_dados <- tar_read(agregacao)
+# versao_dados <- tar_read(versao_dados)
+upload_arquivos <- function(dir_dados, versao_dados) {
   arquivos_cnefe <- list.files(dir_dados, full.names = TRUE)
-
-  tmpdir <- tempfile("cnefe_padronizado_zipado")
-  dir.create(tmpdir)
-
-  arquivos_zipados <- purrr::map_chr(
-    arquivos_cnefe,
-    function(arq) {
-      nome_dir <- basename(arq)
-
-      zip::zipr(
-        file.path(tmpdir, paste0(nome_dir, ".zip")),
-        files = arq
-      )
-    }
-  )
-
-  nome_tag <- "v0.1.0"
 
   # tenta criar um release pra fazer upload do cnefe padronizado. se release já
   # existe a função retorna um warning. no caso, fazemos um "upgrade" de warning
@@ -26,10 +10,10 @@ upload_arquivos <- function(dir_dados) {
   tryCatch(
     piggyback::pb_release_create(
       "ipeaGIT/padronizacao_cnefe",
-      tag = nome_tag,
-      body = paste0("CNEFE padronizado ", nome_tag)
+      tag = versao_dados,
+      body = paste0("CNEFE padronizado ", versao_dados)
     ),
-    warning = function(cnd) erro_release_existente(nome_tag)
+    warning = function(cnd) erro_release_existente(versao_dados)
   )
 
   # o github tem um pequeno lagzinho pra identificar que o release foi criado,
@@ -39,28 +23,28 @@ upload_arquivos <- function(dir_dados) {
   Sys.sleep(2)
 
   purrr::walk(
-    arquivos_zipados,
+    arquivos_cnefe,
     function(arq) {
       piggyback::pb_upload(
         arq,
         repo = "ipeaGIT/padronizacao_cnefe",
-        tag = nome_tag
+        tag = versao_dados
       )
     }
   )
 
   endereco_release <- paste0(
     "https://github.com/ipeaGIT/padronizacao_cnefe/releases/",
-    nome_tag
+    versao_dados
   )
 
   return(endereco_release)
 }
 
-erro_release_existente <- function(nome_tag) {
+erro_release_existente <- function(versao_dados) {
   cli::cli_abort(
     c(
-      "O release {.val {nome_tag}} j\u00e1 existe.",
+      "O release {.val {versao_dados}} j\u00e1 existe.",
       "i" = "Por favor, use uma nova tag ou apague o release existente."
     ),
     call = rlang::caller_env(n = 5)
