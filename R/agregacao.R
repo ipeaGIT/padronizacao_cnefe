@@ -40,6 +40,7 @@ agregar_cnefe <- function(endereco_cnefe, versao_dados) {
 
     if (caso <= 8) {
       cnefe_agregado <- cnefe_agregado[nome_logradouro != "SEM DENOMINACAO"]
+     # cnefe_agregado <- cnefe_agregado[nome_logradouro != "RUA PROJETADA"]
     }
 
     # agora fazemos a agregação, de fato, usando as colunas selecionadas
