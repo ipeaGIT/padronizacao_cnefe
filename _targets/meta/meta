@@ -1,13 +1,14 @@
 name|type|data|command|depend|seed|path|time|size|bytes|format|repository|iteration|parent|children|seconds|warnings|error
 adicionar_coluna_de_endereco|function|9c47562a93fe1f32|||||||||||||||
 agregacao|stem|c738216c8625703b|aa4113ef941682c6|5644b2539d7ce181|1879412536|//storage6/bases/DADOS/PUBLICO/CNEFE/cnefe_padrao_geocodebr/2022/v0.1.0/dados_agregados|t20098.7048474115s|a10b0861f057ffab|0|file|local|vector|||2715.22||
-agregar_cnefe|function|ea6c497edde27da1|||||||||||||||
+agregar_cnefe|function|d49d3f618fc3e80b|||||||||||||||
 erro_release_existente|function|d35fd80100a27227|||||||||||||||
-padronizacao|stem|076ff7c6a21a02da|0ecba72567bbd63e|3ff8839075727f85|704861656|//storage6/bases/DADOS/PUBLICO/CNEFE/cnefe_padrao_geocodebr/2022/v0.1.0/microdados|t20096.8136353088s|a10b0861f057ffab|0|file|local|vector|||1402.49|Potentially unsafe or invalid elements have been discarded from R metadata.ℹ Type externalptr If you trust the source, you can set optionsarrow.unsafe_metadata  TRUE to preserve them.. Potentially unsafe or invalid elements have been discarded from R metadata.ℹ Type externalptr If you trust the source, you can set optionsarrow.unsafe_metadata  TRUE to preserve them.. Potentially unsafe or invalid elements have been discarded from R metadata.ℹ Type externalptr If you trust the source, you can set optionsarrow.unsafe_metadata  TRUE to preserve them.|
-padronizar_cnefe|function|9e34d5efa12822b1|||||||||||||||
+extrair_comeco_logr_uma_palavra|function|958d8fb03643d7ee|||||||||||||||
+padronizacao|stem|3c6763a350c2ffd4|0ecba72567bbd63e|dbc05e6859730db0|704861656|//storage6/bases/DADOS/PUBLICO/CNEFE/cnefe_padrao_geocodebr/2022/v0.2.0/microdados|t20125.6875733106s|9c6003073ab6f6da|1883492462|file|local|vector|||6216.05|Potentially unsafe or invalid elements have been discarded from R metadata.ℹ Type externalptr If you trust the source, you can set optionsarrow.unsafe_metadata  TRUE to preserve them.. Potentially unsafe or invalid elements have been discarded from R metadata.ℹ Type externalptr If you trust the source, you can set optionsarrow.unsafe_metadata  TRUE to preserve them.. Potentially unsafe or invalid elements have been discarded from R metadata.ℹ Type externalptr If you trust the source, you can set optionsarrow.unsafe_metadata  TRUE to preserve them.|
+padronizar_cnefe|function|28d57fc0a72d2520|||||||||||||||
 readme_md|stem|e5a1fbdec487e9f3|4c59f2a2f407d2c0|6a4ed843d149cbe0|176917943|L:/Proj_acess_oport/git_daniel/padronizacao_cnefe/README.md|t20034.6035965355s|1d06a589a5a8b44c|1941|file|local|vector|||2.87||
 readme_rmd|stem|962f1868d0912bf5|cce0d512cba8c607|2c530c1562a7fbd1|1252109129|README.Rmd|t20034.5979051533s|22a797ef2cec3b34|2141|file|local|vector|||0||
 selecionar_colunas|function|9dc80c17c0de2fe5|||||||||||||||
 upload|stem|139a2f6791cedf6f|cc3abd545a920416|515b2199206a8785|1202071109||t20098.7155530341s|b0c128ee413cce30|114|rds|local|vector|||342.04||
 upload_arquivos|function|826f8f27831de3ab|||||||||||||||
-versao_dados|stem|dffd9a8ba3913627|a7d3180787f4b6c4|2c530c1562a7fbd1|-959350309||t20096.7981764067s|1e2e749c6d4ad693|59|rds|local|vector|||0||
+versao_dados|stem|a235bfcf0c1a1b38|82ba280b69e1ae0d|2c530c1562a7fbd1|-959350309||t20125.6156235062s|1e2e749c6d4ad693|59|rds|local|vector|||0||

@@ -42,7 +42,7 @@ padronizar_cnefe <- function(versao_dados) {
   # registros servem pra indicar quando o mesmo endereço/estabelecimento pode
   # possuir finalidades diferentes (e.g. uma linha se refere ao endereço quando
   # usado como domicílio particular, outra ao endereço quando usado como
-  # estabelcimento de saúde). como no nosso caso essa diferença não importa,
+  # estabelecimento de saúde). como no nosso caso essa diferença não importa,
   # mantemos apenas registros únicos.
 
   cnefe <- mutate(
@@ -72,6 +72,48 @@ padronizar_cnefe <- function(versao_dados) {
   cnefe[, c("nom_titulo_seglogr", "nom_seglogr") := NULL]
   cnefe[, c("nwords_titulo", "comeco_logr", "juntar") := NULL]
 
+  # também pode acontecer do nome do logradouro incluir o tipo do logradouro.
+  # dessa forma, fazemos um procedimento análogo ao feito acima, pra eliminar
+  # eventuais redundâncias.
+  #
+  # quase todas os registros envolvem tipos de logradouro compostos por apenas
+  # uma palavra (106~ milhões de observações), o que faz com que a função
+  # stringr::word() use muita memória e crashe o R. então usamos uma função
+  # auxiliar para calcular comeco_logr em batches nesse caso.
+  #
+  # no fim dessa sequência, atualizamos o nome do logradouro para remover o tipo
+  # que estava embutido
+
+  cnefe[, nwords_tipo := stringr::str_count(nom_tipo_seglogr, "\\S+")]
+
+  extrair_comeco_logr_uma_palavra(cnefe)
+  cnefe[nwords_tipo == 2, comeco_logr := stringr::word(nome_logradouro, 1, 2)]
+  cnefe[nwords_tipo == 3, comeco_logr := stringr::word(nome_logradouro, 1, 3)]
+  cnefe[nwords_tipo == 4, comeco_logr := stringr::word(nome_logradouro, 1, 4)]
+  cnefe[is.na(comeco_logr), comeco_logr := nome_logradouro]
+  cnefe[nom_tipo_seglogr == comeco_logr, juntar := FALSE]
+  cnefe[is.na(juntar), juntar := TRUE]
+
+  cnefe[
+    ,
+    logradouro_sem_numero := ifelse(
+      juntar,
+      paste(nom_tipo_seglogr, nome_logradouro),
+      nome_logradouro
+    )
+  ]
+
+  cnefe[
+    juntar == TRUE,
+    nome_logradouro := stringr::str_replace(
+      nome_logradouro,
+      pattern = nom_tipo_seglogr,
+      replacement = ""
+    )
+  ]
+
+  cnefe[, c("nwords_tipo", "comeco_logr", "juntar") := NULL]
+
   cnefe[
     ,
     estado := enderecobr::padronizar_estados(code_state, formato = "sigla")
@@ -85,8 +127,6 @@ padronizar_cnefe <- function(versao_dados) {
 
   cnefe[, numero := num_adress]
   cnefe[, num_adress := NULL]
-
-  cnefe[, logradouro_sem_numero := paste(nom_tipo_seglogr, nome_logradouro)]
 
   data.table::setnames(
     cnefe,
@@ -138,4 +178,22 @@ padronizar_cnefe <- function(versao_dados) {
   )
 
   return(dir_ano)
+}
+
+extrair_comeco_logr_uma_palavra <- function(cnefe) {
+  indices <- which(cnefe$nwords_tipo == 1)
+  divisao_grupo <- cut(indices, breaks = 10)
+
+  grupos <- split(indices, divisao_grupo)
+
+  resultado <- lapply(
+    grupos,
+    function(is) stringr::word(cnefe[is]$nome_logradouro, 1, 1)
+  )
+
+  resultado <- unlist(resultado)
+
+  cnefe[nwords_tipo == 1, comeco_logr := resultado]
+
+  return(invisible(cnefe[]))
 }
