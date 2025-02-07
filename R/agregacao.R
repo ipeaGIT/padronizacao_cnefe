@@ -39,8 +39,8 @@ agregar_cnefe <- function(endereco_cnefe, versao_dados) {
     # removê-los quando o logradouro é uma variável de identificação relevante
 
     if (caso <= 8) {
-      cnefe_agregado <- cnefe_agregado[nome_logradouro != "SEM DENOMINACAO"]
-     cnefe_agregado <- cnefe_agregado[nome_logradouro != "RUA PROJETADA"]
+      cnefe_agregado <- cnefe_agregado[!grepl("SEM DENOMINACAO", nome_logradouro)]
+      cnefe_agregado <- cnefe_agregado[!grepl("PROJETAD(A|O)", nome_logradouro)]
     }
 
     # agora fazemos a agregação, de fato, usando as colunas selecionadas
@@ -48,7 +48,7 @@ agregar_cnefe <- function(endereco_cnefe, versao_dados) {
 
     cnefe_agregado <- cnefe_agregado[
       ,
-      .(lon = mean(lon), lat = mean(lat)),
+      .(n_casos = .N, lon = mean(lon), lat = mean(lat)),
       by = colunas_agregacao
     ]
 
@@ -60,7 +60,7 @@ agregar_cnefe <- function(endereco_cnefe, versao_dados) {
 
     data.table::setcolorder(
       cnefe_agregado,
-      c(colunas_agregacao, "endereco_completo", "lon", "lat")
+      c(colunas_agregacao, "endereco_completo", "n_casos", "lon", "lat")
     )
 
     # convertemos de volta para arrow para definirmos o schema e o tipo de cada
@@ -72,14 +72,15 @@ agregar_cnefe <- function(endereco_cnefe, versao_dados) {
       localidade = arrow::string(),
       cep = arrow::string(),
       numero = arrow::int32(),
-      logradouro_sem_numero = arrow::large_utf8(),
+      logradouro = arrow::large_utf8(),
       endereco_completo = arrow::large_utf8(),
+      n_casos = arrow::int32(),
       lon = arrow::float64(),
       lat = arrow::float64()
     )
 
     schema_arquivo <- schema_cnefe[
-      c(colunas_agregacao, "endereco_completo", "lon", "lat")
+      c(colunas_agregacao, "endereco_completo", "n_casos", "lon", "lat")
     ]
 
     cnefe_agregado <- arrow::as_arrow_table(
@@ -88,11 +89,9 @@ agregar_cnefe <- function(endereco_cnefe, versao_dados) {
     )
 
     # cada versão agregada é salva com o nome das colunas usadas na agregação.
-    # apenas omitimos a coluna "estado", presente em todas as agregações, e
-    # substituimos "logradouro_sem_numero" por "logradouro"
+    # apenas omitimos a coluna "estado", presente em todas as agregações
 
     nome_arquivo <- setdiff(colunas_agregacao, "estado")
-    nome_arquivo <- sub("logradouro_sem_numero", "logradouro", nome_arquivo)
     nome_arquivo <- paste(nome_arquivo, collapse = "_")
     nome_arquivo <- glue::glue("{nome_arquivo}.parquet")
 
@@ -108,21 +107,21 @@ agregar_cnefe <- function(endereco_cnefe, versao_dados) {
 
 selecionar_colunas <- function(caso) {
   if (caso == 1) {
-    c("estado", "municipio", "logradouro_sem_numero", "numero", "cep", "localidade")
+    c("estado", "municipio", "logradouro", "numero", "cep", "localidade")
   } else if (caso == 2) {
-    c("estado", "municipio", "logradouro_sem_numero", "numero", "cep")
+    c("estado", "municipio", "logradouro", "numero", "cep")
   } else if (caso == 3) {
-    c("estado", "municipio", "logradouro_sem_numero", "numero", "localidade")
+    c("estado", "municipio", "logradouro", "numero", "localidade")
   } else if (caso == 4) {
-    c("estado", "municipio", "logradouro_sem_numero", "numero")
+    c("estado", "municipio", "logradouro", "numero")
   } else if (caso == 5) {
-    c("estado", "municipio", "logradouro_sem_numero", "cep", "localidade")
+    c("estado", "municipio", "logradouro", "cep", "localidade")
   } else if (caso == 6) {
-    c("estado", "municipio", "logradouro_sem_numero", "cep")
+    c("estado", "municipio", "logradouro", "cep")
   } else if (caso == 7) {
-    c("estado", "municipio", "logradouro_sem_numero", "localidade")
+    c("estado", "municipio", "logradouro", "localidade")
   } else if (caso == 8) {
-    c("estado", "municipio", "logradouro_sem_numero")
+    c("estado", "municipio", "logradouro")
   } else if (caso == 9) {
     c("estado", "municipio", "cep", "localidade")
   } else if (caso == 10) {
@@ -144,10 +143,10 @@ adicionar_coluna_de_endereco <- function(cnefe_agregado, colunas_agregacao) {
   # lembrando também que todos os nossos casos incluem ao menos estado e
   # município
 
-  if (all(c("logradouro_sem_numero", "numero") %in% colunas_agregacao)) {
-    cnefe_agregado[, .campo_log := paste0(logradouro_sem_numero, ", ", numero, " - ")]
-  } else if ("logradouro_sem_numero" %in% colunas_agregacao) {
-    cnefe_agregado[, .campo_log := paste0(logradouro_sem_numero, " - ")]
+  if (all(c("logradouro", "numero") %in% colunas_agregacao)) {
+    cnefe_agregado[, .campo_log := paste0(logradouro, ", ", numero, " - ")]
+  } else if ("logradouro" %in% colunas_agregacao) {
+    cnefe_agregado[, .campo_log := paste0(logradouro, " - ")]
   } else {
     cnefe_agregado[, .campo_log := ""]
   }

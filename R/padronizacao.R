@@ -96,7 +96,7 @@ padronizar_cnefe <- function(versao_dados) {
 
   cnefe[
     ,
-    logradouro_sem_numero := ifelse(
+    logradouro := ifelse(
       juntar,
       paste(nom_tipo_seglogr, nome_logradouro),
       nome_logradouro
@@ -104,10 +104,10 @@ padronizar_cnefe <- function(versao_dados) {
   ]
 
   cnefe[
-    juntar == TRUE,
+    juntar == FALSE,
     nome_logradouro := stringr::str_replace(
       nome_logradouro,
-      pattern = nom_tipo_seglogr,
+      pattern = paste0("^", nom_tipo_seglogr, " "),
       replacement = ""
     )
   ]
@@ -138,13 +138,11 @@ padronizar_cnefe <- function(versao_dados) {
     cnefe,
     c(
       "estado", "municipio", "localidade", "cep", "tipo_logradouro",
-      "nome_logradouro", "numero", "logradouro_sem_numero", "lon", "lat"
+      "nome_logradouro", "numero", "logradouro", "lon", "lat"
     )
   )
 
-  cnefe <- cnefe[
-    order(estado, municipio, logradouro_sem_numero, numero, cep, localidade)
-  ]
+  cnefe <- cnefe[order(estado, municipio, logradouro, numero, cep, localidade)]
 
   schema_cnefe <- arrow::schema(
     estado = arrow::string(),
@@ -154,7 +152,7 @@ padronizar_cnefe <- function(versao_dados) {
     tipo_logradouro = arrow::string(),
     nome_logradouro = arrow::string(),
     numero = arrow::int32(),
-    logradouro_sem_numero = arrow::large_utf8(),
+    logradouro = arrow::large_utf8(),
     lon = arrow::float64(),
     lat = arrow::float64()
   )
