@@ -39,8 +39,9 @@ agregar_cnefe <- function(endereco_cnefe, versao_dados) {
     # removê-los quando o logradouro é uma variável de identificação relevante
 
     if (caso <= 8) {
-      cnefe_agregado <- cnefe_agregado[!grepl("SEM DENOMINACAO", nome_logradouro)]
-      cnefe_agregado <- cnefe_agregado[!grepl("PROJETAD(A|O)", nome_logradouro)]
+      cnefe_agregado <- cnefe_agregado[!grepl("SEM DENOMINACAO", nome_logradouro, fixed = TRUE)]
+      cnefe_agregado <- cnefe_agregado[!grepl("PROJETAD(A|O)", nome_logradouro, perl = TRUE)]
+      cnefe_agregado <- cnefe_agregado[!grepl("PARTICULAR", nome_logradouro, fixed = TRUE)]
     }
 
     # agora fazemos a agregação, de fato, usando as colunas selecionadas
