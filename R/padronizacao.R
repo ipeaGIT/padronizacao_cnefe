@@ -1,9 +1,11 @@
 # versao_dados <- tar_read(versao_dados)
 padronizar_cnefe <- function(versao_dados) {
+
   colunas_a_manter <- c(
     "code_address",       # identificador
     "code_state",         # estado
     "code_muni",          # municipio
+    "code_sector",        # setor censitario
     "cep",                # cep
     "desc_localidade",    # bairro, povoado, vila, etc
     "nom_tipo_seglogr",   # tipo de logradouro
@@ -15,14 +17,42 @@ padronizar_cnefe <- function(versao_dados) {
     "nv_geo_coord"        # nivel de geocodificacao
   )
 
-  cnefe <- ipeadatalake::ler_cnefe(2022, colunas = colunas_a_manter)
+  cnefe <- ipeadatalake::ler_cnefe(
+    ano = 2022,
+    colunas = colunas_a_manter
+    ) |>
+    mutate( code_tract = stringr::str_remove_all(code_sector, pattern = '[A-Z]') )
 
-  # mantemos apenas endereços com nv_geo_coord <= 4, visto que 5 representa uma
-  # localidade (similar a um bairro) e 6 representa um setor censitário (que
-  # pode ter dimensões gigantescas, principalmente em áreas rurais, mais
-  # propensas a não ter endereços precisos a nível de rua)
+  # determina quais setores tem pontos com nivel 5 e 6
+  code_tract_nv_56 <- cnefe |>
+    dplyr::filter(nv_geo_coord %in% c(5, 6)) |>
+    pull(code_tract) |>
+    unique()
 
-  cnefe <- filter(cnefe, nv_geo_coord <= 4)
+  all_tracts_geobr <- geobr::read_census_tract(code_tract = 'all', year = 2022)
+
+  tract_nv_56_df <- all_tracts_geobr |>
+    sf::st_drop_geometry() |>
+    filter(code_tract %in% code_tract_nv_56)
+
+  # summary(all_tracts$area_km2)
+
+  tracts_aceitaveis <- all_tracts_geobr |>
+    dplyr::filter(area_km2 < 0.1) |>
+    dplyr::pull(code_tract) |>
+    as.character()
+
+  #' mantemos apenas endereços com nv_geo_coord <= 4, OU nv_geo_coord 5 e 6 em
+  #' setores censitarios com area menor ou igual a 0.1km2 (equivalente ao H3 res 9)
+  #' nv_geo_coord 5 representa uma localidade (similar a um bairro) e 6 representa
+  #' um setor censitário (que
+  #' pode ter dimensões gigantescas, principalmente em áreas rurais, mais propensas
+  #' a não ter endereços precisos a nível de rua)
+
+  cnefe <- cnefe |>
+    filter(nv_geo_coord <= 4 |
+             code_tract %in% tracts_aceitaveis
+    )
 
   # se número == 0, setar NA. mantemos como numérico, pois durante o processo de
   # geolocalização podemos usá-los para fazer uma interpolação, e para isso
