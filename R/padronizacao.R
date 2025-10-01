@@ -21,26 +21,44 @@ padronizar_cnefe <- function(versao_dados) {
     ano = 2022,
     colunas = colunas_a_manter
     ) |>
-    mutate( code_tract = stringr::str_remove_all(code_sector, pattern = '[A-Z]') )
+    dplyr::mutate( code_tract = stringr::str_remove_all(code_sector, pattern = '[A-Z]') )
 
-  # determina quais setores tem pontos com nivel 5 e 6
+  cnefe <- cnefe |>                 # 66666666666666666666 TO REMOVE----------------------66666666666666666666
+    dplyr::filter(code_state == 12) # 66666666666666666666 TO REMOVE----------------------66666666666666666666
+
+  # determina quais setores que tem pontos com nivel 5 e 6
   code_tract_nv_56 <- cnefe |>
     dplyr::filter(nv_geo_coord %in% c(5, 6)) |>
-    pull(code_tract) |>
-    unique()
+    # dplyr::pull(code_tract) |>
+    dplyr::select(code_tract) |>
+    unique() |>
+    dplyr::collect()
 
+  #' garante que usamos apenas codigos existentes em 2022
+  #' a gente sabe q alguns desses codigos sao equivocadamente de 2010
+  #' Ver https://github.com/ipeaGIT/padronizacao_cnefe/issues/16
+  #' fonte do dado original: https://www.ibge.gov.br/geociencias/organizacao-do-territorio/malhas-territoriais/26565-malhas-de-setores-censitarios-divisoes-intramunicipais.html
+  crosswalk <- readRDS('./data_raw/crosswalk_tracts_2010_2022.rds')
+  crosswalk <- crosswalk |>
+    dplyr::mutate(dplyr::across(dplyr::everything(), as.character))
+
+  df_tracts <- dplyr::left_join(code_tract_nv_56, crosswalk, by=c('code_tract'='code_tract_2022'))
+  df_tracts <- dplyr::left_join(df_tracts, crosswalk, by=c('code_tract'='code_tract_2010'))
+  df_tracts <- df_tracts |>
+    dplyr::mutate( real_code_22 := ifelse(is.na(code_tract_2022), code_tract, code_tract_2022))
+
+  code_tract_nv_56 <- as.numeric(df_tracts$real_code_22)
+
+  # get the area in km2 of all census tracts in 2022
   all_tracts_geobr <- geobr::read_census_tract(code_tract = 'all', year = 2022)
 
-  tract_nv_56_df <- all_tracts_geobr |>
-    sf::st_drop_geometry() |>
-    filter(code_tract %in% code_tract_nv_56)
-
-  # summary(all_tracts$area_km2)
-
   tracts_aceitaveis <- all_tracts_geobr |>
-    dplyr::filter(area_km2 < 0.1) |>
-    dplyr::pull(code_tract) |>
-    as.character()
+    sf::st_drop_geometry() |>
+    dplyr::filter(code_tract %in% code_tract_nv_56) |>
+    dplyr::filter(area_km2 < 0.1)
+
+  # summary(tracts_aceitaveis$area_km2)
+  tracts_aceitaveis <- tracts_aceitaveis$code_tract
 
   #' mantemos apenas endereços com nv_geo_coord <= 4, OU nv_geo_coord 5 e 6 em
   #' setores censitarios com area menor ou igual a 0.1km2 (equivalente ao H3 res 9)
@@ -50,15 +68,15 @@ padronizar_cnefe <- function(versao_dados) {
   #' a não ter endereços precisos a nível de rua)
 
   cnefe <- cnefe |>
-    filter(nv_geo_coord <= 4 |
-             code_tract %in% tracts_aceitaveis
+    dplyr::filter(nv_geo_coord <= 4 |
+                    code_tract %in% tracts_aceitaveis
     )
 
-  # se número == 0, setar NA. mantemos como numérico, pois durante o processo de
-  # geolocalização podemos usá-los para fazer uma interpolação, e para isso
-  # precisamos que seja numérico.
+  # se numero == 0, setar NA. mantemos como numerico, pois durante o processo de
+  # geolocalizacao podemos usa-los para fazer uma interpolacao, e para isso
+  # precisamos que seja numerico.
 
-  cnefe <- mutate(
+  cnefe <- dplyr::mutate(
     cnefe,
     num_adress = ifelse(num_adress == 0, NA_integer_, num_adress)
   )
@@ -68,21 +86,22 @@ padronizar_cnefe <- function(versao_dados) {
   # palavras. só podemos juntar o nome com o titulo nos casos em que essa
   # repetição não ocorre
   #
-  # o cnefe pode conter também linhas duplicadas. na tabela original, esses
-  # registros servem pra indicar quando o mesmo endereço/estabelecimento pode
+  # o cnefe pode conter tambem linhas duplicadas. na tabela original, esses
+  # registros servem pra indicar quando o mesmo endereco/estabelecimento pode
   # possuir finalidades diferentes (e.g. uma linha se refere ao endereço quando
-  # usado como domicílio particular, outra ao endereço quando usado como
-  # estabelecimento de saúde). como no nosso caso essa diferença não importa,
-  # mantemos apenas registros únicos.
+  # usado como domicilio particular, outra ao endereço quando usado como
+  # estabelecimento de saude). como no nosso caso essa diferenca nao importa,
+  # mantemos apenas registros unicos.
 
-  cnefe <- mutate(
+  cnefe <- dplyr::mutate(
     cnefe,
     nwords_titulo = stringr::str_count(nom_titulo_seglogr, "\\S+")
-  )
+  ) |>
+    unique(cnefe) |>
+    dplyr::collect()
 
-  cnefe <- data.table::setDT(collect(cnefe))
-  cnefe <- unique(cnefe)
-  cnefe[, c("code_address", "nv_geo_coord") := NULL]
+  cnefe <- data.table::setDT(cnefe)
+  cnefe[, c("code_address", "nv_geo_coord", "code_sector") := NULL]
 
   cnefe[nwords_titulo == 1, comeco_logr := stringr::word(nom_seglogr, 1, 1)]
   cnefe[nwords_titulo == 2, comeco_logr := stringr::word(nom_seglogr, 1, 2)]
@@ -102,8 +121,8 @@ padronizar_cnefe <- function(versao_dados) {
   cnefe[, c("nom_titulo_seglogr", "nom_seglogr") := NULL]
   cnefe[, c("nwords_titulo", "comeco_logr", "juntar") := NULL]
 
-  # também pode acontecer do nome do logradouro incluir o tipo do logradouro.
-  # dessa forma, fazemos um procedimento análogo ao feito acima, pra eliminar
+  # tambem pode acontecer do nome do logradouro incluir o tipo do logradouro.
+  # dessa forma, fazemos um procedimento analogo ao feito acima, pra eliminar
   # eventuais redundâncias.
   #
   # quase todas os registros envolvem tipos de logradouro compostos por apenas
@@ -184,7 +203,8 @@ padronizar_cnefe <- function(versao_dados) {
     numero = arrow::int32(),
     logradouro = arrow::large_utf8(),
     lon = arrow::float64(),
-    lat = arrow::float64()
+    lat = arrow::float64(),
+    code_tract = arrow::string()
   )
 
   cnefe_arrow <- arrow::as_arrow_table(cnefe, schema = schema_cnefe)

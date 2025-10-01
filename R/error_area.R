@@ -1,6 +1,6 @@
 data.table::setDTthreads(percent = 100)
 
-cnefe_agregado2 <- cnefe_agregado[
+cnefe_agregado2 <- cnefe_agregado2[
   ,
   .(lon = mean(lon),
     lat = mean(lat),

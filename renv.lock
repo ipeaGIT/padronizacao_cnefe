@@ -513,6 +513,23 @@
       ],
       "Hash": "4b29bf698d0c7bdb9f1e4976e7ade41d"
     },
+    "geobr": {
+      "Package": "geobr",
+      "Version": "1.9.1",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "R",
+        "curl",
+        "data.table",
+        "dplyr",
+        "fs",
+        "methods",
+        "sf",
+        "utils"
+      ],
+      "Hash": "2f9825a7d857f05f836b0b22141f61f2"
+    },
     "geometries": {
       "Package": "geometries",
       "Version": "0.2.4",
