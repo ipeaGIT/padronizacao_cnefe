@@ -98,7 +98,13 @@ agregar_cnefe <- function(endereco_cnefe, versao_dados) {
 
     endereco_arquivo <- file.path(dir_agreg, nome_arquivo)
 
-    arrow::write_parquet(cnefe_agregado, sink = endereco_arquivo)
+    # salva parquet compactado
+    arrow::write_parquet(
+      x = cnefe_agregado,
+      sink = endereco_arquivo,
+      compression='zstd',
+      compression_level = 22
+      )
 
     cli::cli_progress_done()
   }
