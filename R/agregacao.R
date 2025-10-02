@@ -1,8 +1,17 @@
+# state_i <- tar_read(abbrev_uf)[1]
 # endereco_cnefe <- tar_read(padronizacao)
 # versao_dados <- tar_read(versao_dados)
-agregar_cnefe <- function(endereco_cnefe, versao_dados) {
-  cnefe <- arrow::open_dataset(endereco_cnefe)
-  cnefe <- data.table::setDT(collect(cnefe))
+agregar_cnefe <- function(state_i, endereco_cnefe, versao_dados) {
+
+  data.table::setDTthreads(percent = 50)
+  sf::sf_use_s2(use_s2 = FALSE)
+
+  cnefe <- arrow::open_dataset(endereco_cnefe) |>
+    dplyr::filter(estado == state_i) |>
+    #  dplyr::filter(municipio == 'SEROPEDICA') |>
+    dplyr::collect()
+
+  data.table::setDT(cnefe)
 
   dir_dados <- file.path(
     Sys.getenv("PUBLIC_DATA_PATH"),
@@ -17,11 +26,12 @@ agregar_cnefe <- function(endereco_cnefe, versao_dados) {
   # coordenadas usando essas colunas como grupos
 
   for (caso in 1:12) {
+
     cli::cli_progress_step(glue::glue("Agregando caso {caso}"))
 
     colunas_agregacao <- selecionar_colunas(caso)
 
-    cnefe_agregado <- data.table::copy(cnefe)
+    cnefe_filtrado <- data.table::copy(cnefe)
 
     # para os casos de 1 a 4, o número é uma informação relevante. não queremos,
     # portanto, considerar endereços sem número, visto que não é garantido, por
@@ -30,7 +40,7 @@ agregar_cnefe <- function(endereco_cnefe, versao_dados) {
     # endereços em extremos opostos da rua, mas igualmente sem número. logo,
     # nesses casos removemos endereços sem número
 
-    if (caso <= 4) cnefe_agregado <- cnefe_agregado[!is.na(numero)]
+    if (caso <= 4) cnefe_filtrado <- cnefe_filtrado[!is.na(numero)]
 
     # de forma similar, para os casos de 1 a 8 o logradouro é uma informação
     # relevante. o CNEFE usa o nome "SEM DENOMINACAO" para identificar
@@ -39,19 +49,75 @@ agregar_cnefe <- function(endereco_cnefe, versao_dados) {
     # removê-los quando o logradouro é uma variável de identificação relevante
 
     if (caso <= 8) {
-      cnefe_agregado <- cnefe_agregado[!grepl("SEM DENOMINACAO", nome_logradouro, fixed = TRUE)]
-      cnefe_agregado <- cnefe_agregado[!grepl("PROJETAD(A|O)", nome_logradouro, perl = TRUE)]
-      cnefe_agregado <- cnefe_agregado[!grepl("PARTICULAR", nome_logradouro, fixed = TRUE)]
+      cnefe_filtrado <- cnefe_filtrado[!grepl("SEM DENOMINACAO", nome_logradouro, fixed = TRUE)]
+      cnefe_filtrado <- cnefe_filtrado[!grepl("PROJETAD(A|O)", nome_logradouro, perl = TRUE)]
+      cnefe_filtrado <- cnefe_filtrado[!grepl("PARTICULAR", nome_logradouro, fixed = TRUE)]
     }
 
     # agora fazemos a agregação, de fato, usando as colunas selecionadas
     # anteriormente como grupos
 
-    cnefe_agregado <- cnefe_agregado[
+    cnefe_agregado <- cnefe_filtrado[
       ,
-      .(n_casos = .N, lon = mean(lon), lat = mean(lat)),
+      .(n_casos = .N,
+        lon = mean_coord_2step(lon, lat, returned_coord='lon', .95),
+        lat = mean_coord_2step(lon, lat, returned_coord='lat', .95),
+        desvio_metros = distance_percentile_2step(lon,lat, percentile = .95)
+        ),
       by = colunas_agregacao
     ]
+
+    # add 5.8 meters based on the best gps precision of cnefe
+    # https://biblioteca.ibge.gov.br/visualizacao/livros/liv102063.pdf
+    cnefe_agregado[, desvio_metros := desvio_metros + 6]
+
+
+#'     summary(cnefe_agregado2$raio_metros_p95)
+#'     summary(cnefe_agregado2$raio_metros_p100)
+#'     cnefe_agregado2[, diff := raio_metros_p100-raio_metros_p95]
+#'     summary(cnefe_agregado2$diff)
+#'
+#'     # dt <- subset(cnefe_agregado2, round(diff, 0) == -3152)
+#'     dt <- subset(cnefe_agregado2, round(diff, 0) == -753)[1,]
+#'     dt2 <- subset(cnefe_agregado,
+#'                  #municipio==dt$municipio &
+#'                  cep== dt$cep
+#'                  #  logradouro == dt$logradouro &
+#'                  #localidade==dt$localidade
+#'                  )
+#'     head(dt2)
+#'     dt_sf <- sfheaders::sf_point(
+#'         obj = dt2,
+#'         x = 'lon',
+#'         y = 'lat',
+#'         keep = TRUE
+#'       )
+#'
+#'     sf::st_crs(dt_sf) <- 4674
+#'
+#'     dt_c <- sfheaders::sf_point(
+#'       obj = dt,
+#'       x = 'lon',
+#'       y = 'lat',
+#'       keep = TRUE
+#'     )
+#'
+#'     sf::st_crs(dt_c) <- 4674
+#'     bff <- sf::st_transform(dt_c, guess_utm(dt_c)) |>
+#'       sf::st_buffer(dist= dt$incerteza_metros_95) |>
+#'       sf::st_transform(crs = 4674)
+#'
+#'
+#'     mapview::mapview(dt_sf) +
+#'       mapview::mapview(dt_c, col.regions = "red") +
+#'       mapview::mapview(bff, col.regions = "green")
+#'
+#'   #' E esse exemplo prova q tinha q ser p95 ou p100
+#'   #' o problema de usar o raio eh q ele eh um raio de um circulo
+#'   #' q nao eh centrado no ponto da nossa estimativa
+
+
+
 
     # adicionamos coluna com o endereço completo, escrito por extenso. essa
     # informação é importante para que os usuários do geocodebr saibam o
@@ -77,11 +143,12 @@ agregar_cnefe <- function(endereco_cnefe, versao_dados) {
       endereco_completo = arrow::large_utf8(),
       n_casos = arrow::int32(),
       lon = arrow::float64(),
-      lat = arrow::float64()
+      lat = arrow::float64(),
+      desvio_metros = arrow::float()
     )
 
     schema_arquivo <- schema_cnefe[
-      c(colunas_agregacao, "endereco_completo", "n_casos", "lon", "lat")
+      c(colunas_agregacao, "endereco_completo", "n_casos", "lon", "lat", "desvio_metros")
     ]
 
     cnefe_agregado <- arrow::as_arrow_table(
@@ -178,4 +245,139 @@ adicionar_coluna_de_endereco <- function(cnefe_agregado, colunas_agregacao) {
   cnefe_agregado[, c(".campo_log", ".campo_loc", ".campo_est") := NULL]
 
   invisible(cnefe_agregado[])
+}
+
+# avg_distance_raster_avg <- function(lon_vec, lat_vec) {
+#
+#   # lon_vec <- dt$lon
+#   # lat_vec <- dt$lat
+#
+#   m <- matrix(c(lon_vec, lat_vec), ncol = 2)
+#
+#   # get centroid
+#   centroid <- matrix(c(mean(lon_vec), mean(lat_vec)), ncol = 2)
+#
+#   dist_m <- raster::pointDistance(centroid, m, lonlat = T) |>
+#     mean() |>
+#     as.numeric()
+#
+#   return(dist_m)
+# }
+
+
+
+
+# # helper: pick a suitable UTM CRS for your points (works for a single country extent)
+# guess_utm <- function(g){
+#   cen <- st_coordinates(st_centroid(st_combine(g)))
+#   lon <- cen[1]; lat <- cen[2]
+#   zone <- floor((lon + 180) / 6) + 1
+#   epsg <- if (lat >= 0) 32600 + zone else 32700 + zone
+#   paste0("EPSG:", epsg)
+# }
+#
+# smallest_enclosing_circle <- function(lon_vec, lat_vec) {
+#
+#   temp_df <- data.frame(lon=lon_vec, lat=lat_vec)
+#
+#   # pts = dt_sf
+#   dt_sf <- sfheaders::sf_point(
+#     temp_df,
+#     x = 'lon',
+#     y = 'lat'
+#   )
+#
+#   sf::st_crs(dt_sf) <- 4674
+#
+#   # project to meters
+#   crs_m <- guess_utm(dt_sf)
+#   pts_m <- st_transform(dt_sf, crs_m)
+#
+#   # convex hull → minimum bounding circle
+#   hull  <- st_convex_hull(st_combine(pts_m))
+#   # hull  <- concaveman::concaveman(pts_m)
+#
+#   circle <- lwgeom::st_minimum_bounding_circle(hull)   # returns a circular polygon
+#   # mapview::mapview(dt_sf) + circle
+#
+#   # center and radius (meters)
+#
+#   radius_m <- sqrt(as.numeric(st_area(circle)) / pi)
+#   #list(circle = circle, center = center, radius_m = radius_m, crs = st_crs(pts_m))
+#   return(radius_m)
+# }
+#
+#
+
+
+
+distance_percentile <- function(lon_vec, lat_vec, percentile) {
+
+  # lon_vec <- dt$lon
+  # lat_vec <- dt$lat
+
+  m <- matrix(c(lon_vec, lat_vec), ncol = 2)
+
+  # get centroid
+  centroid <- matrix(c(mean(lon_vec), mean(lat_vec)), ncol = 2)
+
+  dist_m <- raster::pointDistance(centroid, m, lonlat = T) |>
+    quantile(percentile, names = FALSE) |>
+    round(1)
+
+  return(dist_m)
+}
+
+distance_percentile_2step <- function(lon_vec, lat_vec, percentile) {
+
+  # lon_vec <- dt2$lon
+  # lat_vec <- dt2$lat
+
+  points_matrix <- matrix(c(lon_vec, lat_vec), ncol = 2)
+
+  # get centroid
+  points_centroid <- matrix(c(mean(lon_vec), mean(lat_vec)), ncol = 2)
+
+  dist_vec <- raster::pointDistance(points_centroid, points_matrix, lonlat = T)
+
+  dist_threshol_p95 <- quantile(dist_vec, probs = percentile, names = FALSE)
+  dist_index <- dist_vec <= dist_threshol_p95
+
+  lon_p95 <- lon_vec[dist_index]
+  lat_p95 <- lat_vec[dist_index]
+
+  points_matrix_p95 <- matrix(c(lon_p95, lat_p95), ncol = 2)
+  points_centroid_p95 <- matrix(c(mean(lon_p95), mean(lat_p95)), ncol = 2)
+
+  dist_m <- raster::pointDistance(points_centroid_p95, points_matrix_p95, lonlat = T)
+  dist_m <- round(max(dist_m), 1)
+
+  # distancia do raio q cobre todos pontos p95
+  return(dist_m)
+}
+
+
+mean_coord_2step <- function(lon_vec, lat_vec, returned_coord, percentile) {
+
+  # lon_vec <- dt2$lon
+  # lat_vec <- dt2$lat
+
+  points_matrix <- matrix(c(lon_vec, lat_vec), ncol = 2)
+
+  # get centroid
+  points_centroid <- matrix(c(mean(lon_vec), mean(lat_vec)), ncol = 2)
+
+  dist_vec <- raster::pointDistance(points_centroid, points_matrix, lonlat = T)
+
+  dist_threshol_p95 <- quantile(dist_vec, probs = percentile, names = FALSE)
+  dist_index <- dist_vec < dist_threshol_p95
+
+  if (returned_coord == 'lat') {
+    coord <- lat_vec[dist_index]
+    } else {
+      coord <- lon_vec[dist_index]
+      }
+
+  return(mean(coord))
+
 }
