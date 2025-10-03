@@ -336,6 +336,13 @@
       ],
       "Hash": "61e097f35917d342622f21cdc79c256e"
     },
+    "collections": {
+      "Package": "collections",
+      "Version": "0.3.9",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "eec272efef8f9b1ff376d67cab931935"
+    },
     "concaveman": {
       "Package": "concaveman",
       "Version": "1.1.0",
@@ -360,6 +367,32 @@
         "R"
       ],
       "Hash": "2720e3fd3dad08f34b19b56b3d6f073d"
+    },
+    "crew": {
+      "Package": "crew",
+      "Version": "1.3.0",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "R",
+        "R6",
+        "cli",
+        "collections",
+        "data.table",
+        "later",
+        "mirai",
+        "nanonext",
+        "processx",
+        "promises",
+        "ps",
+        "rlang",
+        "stats",
+        "tibble",
+        "tidyselect",
+        "tools",
+        "utils"
+      ],
+      "Hash": "d81afb9c745b06fbcdb3f44e1255d27a"
     },
     "curl": {
       "Package": "curl",
@@ -512,23 +545,6 @@
         "methods"
       ],
       "Hash": "4b29bf698d0c7bdb9f1e4976e7ade41d"
-    },
-    "geobr": {
-      "Package": "geobr",
-      "Version": "1.9.1",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Requirements": [
-        "R",
-        "curl",
-        "data.table",
-        "dplyr",
-        "fs",
-        "methods",
-        "sf",
-        "utils"
-      ],
-      "Hash": "2f9825a7d857f05f836b0b22141f61f2"
     },
     "geometries": {
       "Package": "geometries",
@@ -689,11 +705,12 @@
     },
     "ipeadatalake": {
       "Package": "ipeadatalake",
-      "Version": "0.2.0.9000",
+      "Version": "1.0.0",
       "Source": "Git",
       "RemoteType": "xgit",
       "RemoteUrl": "https://gitlab.ipea.gov.br/data/ipeadatalake",
-      "RemoteSha": "6be2056ea5dca2cfab312f488c2b0fbb185df3b7",
+      "RemoteRef": "v1.0.0",
+      "RemoteSha": "8496d05952018ef774321c38c3a82c7372545442",
       "Requirements": [
         "DBI",
         "R",
@@ -713,7 +730,7 @@
         "utils",
         "withr"
       ],
-      "Hash": "09b5187c87b8cbfaff61b6f4a3e21648"
+      "Hash": "fd2e9c6e52b942d2c6062dce81b0f672"
     },
     "jquerylib": {
       "Package": "jquerylib",
@@ -750,6 +767,17 @@
         "yaml"
       ],
       "Hash": "5a07d8ec459d7b80bd4acca5f4a6e062"
+    },
+    "later": {
+      "Package": "later",
+      "Version": "1.4.4",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "Rcpp",
+        "rlang"
+      ],
+      "Hash": "a729883bff94b606cd4f0445aeed95b5"
     },
     "lattice": {
       "Package": "lattice",
@@ -833,6 +861,17 @@
       ],
       "Hash": "785ef8e22389d4a7634c6c944f2dc07d"
     },
+    "mirai": {
+      "Package": "mirai",
+      "Version": "2.5.0",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "R",
+        "nanonext"
+      ],
+      "Hash": "e433bf18c659725f62b0252f3055c4b7"
+    },
     "mitools": {
       "Package": "mitools",
       "Version": "2.4",
@@ -844,6 +883,16 @@
         "stats"
       ],
       "Hash": "a4b659bd0528226724d55034f11ed7cb"
+    },
+    "nanonext": {
+      "Package": "nanonext",
+      "Version": "1.7.0",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "R"
+      ],
+      "Hash": "b03e94cc9dfe4045e8a0052dc95b7118"
     },
     "numDeriv": {
       "Package": "numDeriv",
@@ -944,6 +993,22 @@
       ],
       "Hash": "bffa126bf92987e677c12cfb5651fc1d"
     },
+    "promises": {
+      "Package": "promises",
+      "Version": "1.3.3",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "R6",
+        "Rcpp",
+        "fastmap",
+        "later",
+        "magrittr",
+        "rlang",
+        "stats"
+      ],
+      "Hash": "70157a4a73963da5779f9c67f4d31fd1"
+    },
     "proxy": {
       "Package": "proxy",
       "Version": "0.4-27",
@@ -991,6 +1056,20 @@
         "R"
       ],
       "Hash": "5e3c5dc0b071b21fa128676560dbe94d"
+    },
+    "raster": {
+      "Package": "raster",
+      "Version": "3.6-32",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "R",
+        "Rcpp",
+        "methods",
+        "sp",
+        "terra"
+      ],
+      "Hash": "1e193fc2c727a6f83cf95d9e16024423"
     },
     "renv": {
       "Package": "renv",
@@ -1120,6 +1199,23 @@
       ],
       "Hash": "d63e904c63deda45f3f9149c7dcf8703"
     },
+    "sp": {
+      "Package": "sp",
+      "Version": "2.2-0",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "R",
+        "grDevices",
+        "graphics",
+        "grid",
+        "lattice",
+        "methods",
+        "stats",
+        "utils"
+      ],
+      "Hash": "d9ff3b753db98bc50650314c8782abe6"
+    },
     "stringi": {
       "Package": "stringi",
       "Version": "1.8.7",
@@ -1196,6 +1292,27 @@
       "Repository": "RSPM",
       "Hash": "de342ebfebdbf40477d0758d05426646"
     },
+    "tarchetypes": {
+      "Package": "tarchetypes",
+      "Version": "0.13.2",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "R",
+        "dplyr",
+        "fs",
+        "parallel",
+        "rlang",
+        "secretbase",
+        "targets",
+        "tibble",
+        "tidyselect",
+        "utils",
+        "vctrs",
+        "withr"
+      ],
+      "Hash": "7cfd918dc824c176c1eab4c9f323fdd0"
+    },
     "targets": {
       "Package": "targets",
       "Version": "1.11.4",
@@ -1224,6 +1341,18 @@
         "yaml"
       ],
       "Hash": "c25e1088d3614e7a8a79410cc83bdd73"
+    },
+    "terra": {
+      "Package": "terra",
+      "Version": "1.8-70",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "R",
+        "Rcpp",
+        "methods"
+      ],
+      "Hash": "366d90437eed64db1ada9722388d8a58"
     },
     "tibble": {
       "Package": "tibble",

@@ -1,5 +1,5 @@
 # versao_dados <- tar_read(versao_dados)
-padronizar_cnefe <- function(versao_dados) {
+padronizar_cnefe <- function(state_i, versao_dados) {
 
   colunas_a_manter <- c(
     "code_address",       # identificador
@@ -19,12 +19,10 @@ padronizar_cnefe <- function(versao_dados) {
 
   cnefe <- ipeadatalake::ler_cnefe(
     ano = 2022,
-    colunas = colunas_a_manter
-    ) |>
+    colunas = colunas_a_manter) |>
+    dplyr::filter(code_state == state_i) |>
     dplyr::mutate( code_tract = stringr::str_remove_all(code_sector, pattern = '[A-Z]') )
 
-  cnefe <- cnefe |>                 # 66666666666666666666 TO REMOVE----------------------66666666666666666666
-    dplyr::filter(code_state == 12) # 66666666666666666666 TO REMOVE----------------------66666666666666666666
 
   # determina quais setores que tem pontos com nivel 5 e 6
   code_tract_nv_56 <- cnefe |>
@@ -38,9 +36,11 @@ padronizar_cnefe <- function(versao_dados) {
   #' a gente sabe q alguns desses codigos sao equivocadamente de 2010
   #' Ver https://github.com/ipeaGIT/padronizacao_cnefe/issues/16
   #' fonte do dado original: https://www.ibge.gov.br/geociencias/organizacao-do-territorio/malhas-territoriais/26565-malhas-de-setores-censitarios-divisoes-intramunicipais.html
-  crosswalk <- readRDS('./data_raw/crosswalk_tracts_2010_2022.rds')
+  crosswalk <- readRDS('./data_raw/tracts_info.rds')
   crosswalk <- crosswalk |>
-    dplyr::mutate(dplyr::across(dplyr::everything(), as.character))
+    dplyr::mutate(
+      dplyr::across(dplyr::contains("code_"), as.character)
+      )
 
   df_tracts <- dplyr::left_join(code_tract_nv_56, crosswalk, by=c('code_tract'='code_tract_2022'))
   df_tracts <- dplyr::left_join(df_tracts, crosswalk, by=c('code_tract'='code_tract_2010'))
@@ -49,13 +49,11 @@ padronizar_cnefe <- function(versao_dados) {
 
   code_tract_nv_56 <- as.numeric(df_tracts$real_code_22)
 
-  # get the area in km2 of all census tracts in 2022
-  all_tracts_geobr <- geobr::read_census_tract(code_tract = 'all', year = 2022)
 
-  tracts_aceitaveis <- all_tracts_geobr |>
-    sf::st_drop_geometry() |>
-    dplyr::filter(code_tract %in% code_tract_nv_56) |>
-    dplyr::filter(area_km2 < 0.1)
+
+  tracts_aceitaveis <- crosswalk |>
+    dplyr::filter(code_tract_2022 %in% code_tract_nv_56) |>
+    dplyr::filter(area_km2_2022 < 0.1)
 
   # summary(tracts_aceitaveis$area_km2)
   tracts_aceitaveis <- tracts_aceitaveis$code_tract
@@ -193,6 +191,10 @@ padronizar_cnefe <- function(versao_dados) {
 
   cnefe <- cnefe[order(estado, municipio, logradouro, numero, cep, localidade)]
 
+  # remove data table index
+  data.table::setindex(cnefe, NULL)
+  data.table::setDF(cnefe)
+
   schema_cnefe <- arrow::schema(
     estado = arrow::string(),
     municipio = arrow::string(),
@@ -209,8 +211,12 @@ padronizar_cnefe <- function(versao_dados) {
 
   cnefe_arrow <- arrow::as_arrow_table(cnefe, schema = schema_cnefe)
 
+  # dir_dados <- file.path(
+  #   Sys.getenv("PUBLIC_DATA_PATH"),
+  #   "CNEFE/cnefe_padrao_geocodebr"
+  # )
   dir_dados <- file.path(
-    Sys.getenv("PUBLIC_DATA_PATH"),
+    "C:/Users/r1701707/Desktop/cnefe_pdr",
     "CNEFE/cnefe_padrao_geocodebr"
   )
 

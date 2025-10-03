@@ -1,6 +1,8 @@
-# dir_dados <- tar_read(agregacao)
+# dir_dados <- tar_read(agregacao, branch=1)
 # versao_dados <- tar_read(versao_dados)
 upload_arquivos <- function(dir_dados, versao_dados) {
+
+  dir_dados <- dir_dados[1]
   arquivos_cnefe <- list.files(dir_dados, full.names = TRUE)
 
   # tenta criar um release pra fazer upload do cnefe padronizado. se release já
