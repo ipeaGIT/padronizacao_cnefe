@@ -65,7 +65,8 @@ agregar_cnefe <- function(endereco_cnefe, versao_dados) {
       .(n_casos = .N,
         lon = mean_coord_2step(lon, lat, returned_coord='lon', .95),
         lat = mean_coord_2step(lon, lat, returned_coord='lat', .95),
-        desvio_metros = distance_percentile_2step(lon,lat, percentile = .95)
+        desvio_metros = distance_percentile_2step(lon,lat, percentile = .95),
+        code_tract = get_census_tracts(code_tract)
         ),
       by = colunas_agregacao
     ]
@@ -104,11 +105,12 @@ agregar_cnefe <- function(endereco_cnefe, versao_dados) {
       n_casos = arrow::int32(),
       lon = arrow::float64(),
       lat = arrow::float64(),
-      desvio_metros = arrow::float()
+      desvio_metros = arrow::float(),
+      code_tract = arrow::string()
     )
 
     schema_arquivo <- schema_cnefe[
-      c(colunas_agregacao, "endereco_completo", "n_casos", "lon", "lat", "desvio_metros")
+      c(colunas_agregacao, "endereco_completo", "n_casos", "lon", "lat", "desvio_metros", "code_tract")
     ]
 
     cnefe_agregado <- arrow::as_arrow_table(
@@ -207,6 +209,39 @@ adicionar_coluna_de_endereco <- function(cnefe_agregado, colunas_agregacao) {
   invisible(cnefe_agregado[])
 }
 
+
+
+
+
+# coordenada media -------------------------------------------------------------
+
+# coodenada media em duas etapas
+mean_coord_2step <- function(lon_vec, lat_vec, returned_coord, percentile) {
+
+  # lon_vec <- dt2$lon
+  # lat_vec <- dt2$lat
+
+  points_matrix <- matrix(c(lon_vec, lat_vec), ncol = 2)
+
+  # get centroid
+  points_centroid <- matrix(c(mean(lon_vec), mean(lat_vec)), ncol = 2)
+
+  dist_vec <- raster::pointDistance(points_centroid, points_matrix, lonlat = T)
+
+  dist_threshol_p95 <- quantile(dist_vec, probs = percentile, names = FALSE)
+  dist_index <- dist_vec < dist_threshol_p95
+
+  if (returned_coord == 'lat') {
+    coord <- lat_vec[dist_index]
+    } else {
+      coord <- lon_vec[dist_index]
+      }
+
+  return(mean(coord))
+
+}
+
+# distance q cobre x% de todos pontos
 distance_percentile <- function(lon_vec, lat_vec, percentile) {
 
   # lon_vec <- dt$lon
@@ -224,6 +259,7 @@ distance_percentile <- function(lon_vec, lat_vec, percentile) {
   return(dist_m)
 }
 
+# distance q cobre x% de todos pontos em duas etapas
 distance_percentile_2step <- function(lon_vec, lat_vec, percentile) {
 
   # lon_vec <- dt2$lon
@@ -253,27 +289,168 @@ distance_percentile_2step <- function(lon_vec, lat_vec, percentile) {
 }
 
 
-mean_coord_2step <- function(lon_vec, lat_vec, returned_coord, percentile) {
 
-  # lon_vec <- dt2$lon
-  # lat_vec <- dt2$lat
 
+
+# coordenada media com aproximacao linear do numero ----------------------------
+
+# encontra coodenada media por aproximacao linear
+get_aprox_coord <- function(numero_vec, coord) {
+
+  # numero_vec = cnefe_filtrado$numero
+  # coord = cnefe_filtrado$lat
+
+  if (length(unique(numero_vec))<3) {
+    return(mean(coord))
+  }
+
+  # create function
+  f_coord <- approxfun(x = numero_vec, y = coord, method = "linear")
+
+  # get median number
+  mmin <- min(numero_vec)
+  mmax <- max(numero_vec)
+  mmedia <- median(mmin:mmax)
+
+  # return coordinate
+  return(f_coord(mmedia))
+}
+
+# coodenada media em duas etapas com aproximacao linear
+mean_coord_2step_numero <- function(numero_vec, lon_vec, lat_vec, returned_coord, percentile) {
+
+  # lon_vec <- cnefe_filtrado$lon
+  # lat_vec <- cnefe_filtrado$lat
+  # numero_vec <- cnefe_filtrado$numero
+
+  # se tem um unico ponto, entao retorna ele sem calcular distancia alguma
+  if (length(lon_vec) == 1) {
+    if (returned_coord == 'lat') {
+      return(lat_vec)
+    } else {
+      return(lon_vec)
+    }
+  }
+
+  # se todos pontos sao identicos, retorna o 1o
+  if ( returned_coord == 'lat' & all(lat_vec == lat_vec[1]) ) {
+    return(lat_vec[1])
+  }
+  if ( returned_coord == 'lon' & all(lon_vec == lon_vec[1]) ) {
+    return(lon_vec[1])
+  }
+
+  # matrix de todos os pontos
   points_matrix <- matrix(c(lon_vec, lat_vec), ncol = 2)
 
   # get centroid
-  points_centroid <- matrix(c(mean(lon_vec), mean(lat_vec)), ncol = 2)
+  # points_centroid <- matrix(c(mean(lon_vec), mean(lat_vec)), ncol = 2)
+  lon_aprox <- get_aprox_coord(numero_vec, lon_vec)
+  lat_aprox <- get_aprox_coord(numero_vec, lat_vec)
+  points_centroid <- matrix(c(lon_aprox, lat_aprox), ncol = 2)
 
+
+
+  # calcula distancias
   dist_vec <- raster::pointDistance(points_centroid, points_matrix, lonlat = T)
 
+  # identifica pontos que estao dentro da distancia p95
   dist_threshol_p95 <- quantile(dist_vec, probs = percentile, names = FALSE)
-  dist_index <- dist_vec < dist_threshol_p95
+  dist_index <- dist_vec <= dist_threshol_p95
 
   if (returned_coord == 'lat') {
     coord <- lat_vec[dist_index]
-    } else {
-      coord <- lon_vec[dist_index]
-      }
+  } else {
+    coord <- lon_vec[dist_index]
+  }
 
-  return(mean(coord))
+  # aprox linear
+  numero_vec <- numero_vec[dist_index]
+  coord_aprox <- get_aprox_coord(numero_vec, coord)
+
+  return(coord_aprox)
+
+}
+
+# distance q cobre x% de todos pontos em duas etapas com aproximacao linear
+distance_percentile_2step_numero <- function(numero_vec, lon_vec, lat_vec, percentile) {
+
+  # lon_vec <- cnefe_filtrado$lon
+  # lat_vec <- cnefe_filtrado$lat
+  # numero_vec <- cnefe_filtrado$numero
+
+  # se tem um unico ponto, entao retorna ele sem calcular distancia algua
+  if (length(lon_vec)==1) {
+    return(0)
+  }
+
+  # se todos pontos sao identicos, retorna o 1o
+  if ( all(lon_vec == lon_vec[1]) & all(lat_vec == lat_vec[1]) ) {
+    return(0)
+  }
+
+  # matrix de todos os pontos
+  points_matrix <- matrix(c(lon_vec, lat_vec), ncol = 2)
+
+  # get centroid
+  # points_centroid <- matrix(c(mean(lon_vec), mean(lat_vec)), ncol = 2)
+  lon_aprox <- get_aprox_coord(numero_vec, lon_vec)
+  lat_aprox <- get_aprox_coord(numero_vec, lat_vec)
+  points_centroid <- matrix(c(lon_aprox, lat_aprox), ncol = 2)
+
+  # calcula as distancias
+  dist_vec <- raster::pointDistance(points_centroid, points_matrix, lonlat = T)
+
+  # identifica pontos que estao dentro da distancia p95
+  dist_threshol_p95 <- quantile(dist_vec, probs = percentile, names = FALSE)
+  dist_index <- dist_vec <= dist_threshol_p95
+
+  lon_p95 <- lon_vec[dist_index]
+  lat_p95 <- lat_vec[dist_index]
+  num_vec_p95 <- numero_vec[dist_index]
+
+  # matrix de pontos e centroid APENAS para pontos dentro da p95
+  points_matrix_p95 <- matrix(c(lon_p95, lat_p95), ncol = 2)
+
+  # points_centroid_p95 <- matrix(c(mean(lon_p95), mean(lat_p95)), ncol = 2)
+  lon_p95 <- get_aprox_coord(num_vec_p95, lon_p95)
+  lat_p95 <- get_aprox_coord(num_vec_p95, lat_p95)
+  points_centroid_p95 <- matrix(c(lon_p95, lat_p95), ncol = 2)
+
+  # calcula as distancias
+  dist_m <- raster::pointDistance(points_centroid_p95, points_matrix_p95, lonlat = T)
+
+  # distancia do raio q cobre todos pontos p95
+  dist_m <- round(max(dist_m), 1)
+
+  return(dist_m)
+}
+
+
+
+# seleciona setor censitario ---------------------------------------------------
+
+get_census_tracts <- function(code_tract_vec){
+
+  # code_tract_vec <- cnefe_filtrado$code_tract
+
+  code_tract_vec <- unique(code_tract_vec)
+
+  ## solucao concatenando tracts candidatos
+  # code_tract_concat <- paste0(code_tract_vec, collapse = "_")
+  #return(code_tract_concat)
+
+  ## solucao só retorna quando é um unico tract
+  code_tract_vec <- ifelse(length(code_tract_vec)==1, code_tract_vec, NA_character_)
+
+  return(code_tract_vec)
+
+}
+
+get_N_census_tracts <- function(code_tract_vec){
+
+  # code_tract_vec <- cnefe_filtrado$code_tract
+  code_tract_vec <- unique(code_tract_vec)
+  return(length(code_tract_vec))
 
 }
