@@ -1,28 +1,37 @@
+# codigo_uf <- tar_read(codigo_uf)[[1]]
 # versao_dados <- tar_read(versao_dados)
-padronizar_cnefe <- function(state_i, versao_dados) {
-
+padronizar_cnefe <- function(codigo_uf, versao_dados) {
   colunas_a_manter <- c(
-    "code_address",       # identificador
-    "code_state",         # estado
-    "code_muni",          # municipio
-    "code_sector",        # setor censitario
-    "cep",                # cep
-    "desc_localidade",    # bairro, povoado, vila, etc
-    "nom_tipo_seglogr",   # tipo de logradouro
+    "code_address", # identificador
+    "code_state", # estado
+    "code_muni", # municipio
+    "code_sector", # setor censitario
+    "cep", # cep
+    "desc_localidade", # bairro, povoado, vila, etc
+    "nom_tipo_seglogr", # tipo de logradouro
     "nom_titulo_seglogr", # titulo (e.g. general, papa, santa, etc)
-    "nom_seglogr",        # logradouro
-    "num_adress",         # numero
-    "lon",                # longitude
-    "lat",                # latituted
-    "nv_geo_coord"        # nivel de geocodificacao
+    "nom_seglogr", # logradouro
+    "num_adress", # numero
+    "lon", # longitude
+    "lat", # latituted
+    "nv_geo_coord" # nivel de geocodificacao
   )
 
-  cnefe <- ipeadatalake::ler_cnefe(
-    ano = 2022,
-    colunas = colunas_a_manter) |>
-    dplyr::filter(code_state == state_i) |>
-    dplyr::mutate( code_tract = stringr::str_remove_all(code_sector, pattern = '[A-Z]') )
+  # suprimindo warning:
+  #   Potentially unsafe or invalid elements have been discarded from R metadata.
+  #   ℹ Type: "externalptr"
+  #   → If you trust the source, you can set `options(arrow.unsafe_metadata = TRUE)` to preserve them.
 
+  cnefe <- suppressWarnings(
+    ipeadatalake::ler_cnefe(
+      2022,
+      colunas = colunas_a_manter
+    )
+  ) |>
+    dplyr::filter(code_state == codigo_uf) |>
+    dplyr::mutate(
+      code_tract = stringr::str_remove_all(code_sector, pattern = "[A-Z]$")
+    )
 
   # determina quais setores que tem pontos com nivel 5 e 6
   code_tract_nv_56 <- cnefe |>
@@ -40,16 +49,28 @@ padronizar_cnefe <- function(state_i, versao_dados) {
   crosswalk <- crosswalk |>
     dplyr::mutate(
       dplyr::across(dplyr::contains("code_"), as.character)
-      )
+    )
 
-  df_tracts <- dplyr::left_join(code_tract_nv_56, crosswalk, by=c('code_tract'='code_tract_2022'))
-  df_tracts <- dplyr::left_join(df_tracts, crosswalk, by=c('code_tract'='code_tract_2010'))
+  df_tracts <- dplyr::left_join(
+    code_tract_nv_56,
+    crosswalk,
+    by = c('code_tract' = 'code_tract_2022')
+  )
+  df_tracts <- dplyr::left_join(
+    df_tracts,
+    crosswalk,
+    by = c('code_tract' = 'code_tract_2010')
+  )
   df_tracts <- df_tracts |>
-    dplyr::mutate( real_code_22 := ifelse(is.na(code_tract_2022), code_tract, code_tract_2022))
+    dplyr::mutate(
+      real_code_22 := ifelse(
+        is.na(code_tract_2022),
+        code_tract,
+        code_tract_2022
+      )
+    )
 
   code_tract_nv_56 <- as.numeric(df_tracts$real_code_22)
-
-
 
   tracts_aceitaveis <- crosswalk |>
     dplyr::filter(code_tract_2022 %in% code_tract_nv_56) |>
@@ -66,8 +87,9 @@ padronizar_cnefe <- function(state_i, versao_dados) {
   #' a não ter endereços precisos a nível de rua)
 
   cnefe <- cnefe |>
-    dplyr::filter(nv_geo_coord <= 4 |
-                    code_tract %in% tracts_aceitaveis
+    dplyr::filter(
+      nv_geo_coord <= 4 |
+        code_tract %in% tracts_aceitaveis
     )
 
   # se numero == 0, setar NA. mantemos como numerico, pois durante o processo de
@@ -108,8 +130,7 @@ padronizar_cnefe <- function(state_i, versao_dados) {
   cnefe[nwords_titulo == 0, juntar := FALSE]
   cnefe[is.na(juntar), juntar := TRUE]
 
-  cnefe[
-    ,
+  cnefe[,
     nome_logradouro := ifelse(
       juntar,
       paste(nom_titulo_seglogr, nom_seglogr),
@@ -141,8 +162,7 @@ padronizar_cnefe <- function(state_i, versao_dados) {
   cnefe[nom_tipo_seglogr == comeco_logr, juntar := FALSE]
   cnefe[is.na(juntar), juntar := TRUE]
 
-  cnefe[
-    ,
+  cnefe[,
     logradouro := ifelse(
       juntar,
       paste(nom_tipo_seglogr, nome_logradouro),
@@ -161,8 +181,7 @@ padronizar_cnefe <- function(state_i, versao_dados) {
 
   cnefe[, c("nwords_tipo", "comeco_logr", "juntar") := NULL]
 
-  cnefe[
-    ,
+  cnefe[,
     estado := enderecobr::padronizar_estados(code_state, formato = "sigla")
   ]
   cnefe[, code_state := NULL]
@@ -184,8 +203,16 @@ padronizar_cnefe <- function(state_i, versao_dados) {
   data.table::setcolorder(
     cnefe,
     c(
-      "estado", "municipio", "localidade", "cep", "tipo_logradouro",
-      "nome_logradouro", "numero", "logradouro", "lon", "lat"
+      "estado",
+      "municipio",
+      "localidade",
+      "cep",
+      "tipo_logradouro",
+      "nome_logradouro",
+      "numero",
+      "logradouro",
+      "lon",
+      "lat"
     )
   )
 
@@ -221,7 +248,9 @@ padronizar_cnefe <- function(state_i, versao_dados) {
   )
 
   dir_ano <- file.path(dir_dados, "2022", versao_dados, "microdados")
-  if (!dir.exists(dir_ano)) dir.create(dir_ano, recursive = TRUE)
+  if (!dir.exists(dir_ano)) {
+    dir.create(dir_ano, recursive = TRUE)
+  }
 
   arrow::write_dataset(
     cnefe_arrow,

@@ -1,20 +1,27 @@
 name|type|data|command|depend|seed|path|time|size|bytes|format|repository|iteration|parent|children|seconds|warnings|error
-adicionar_coluna_de_endereco|function|1c7e56e0bbbf1616
-distance_percentile_2step|function|375a77722975bbcb
-mean_coord_2step|function|781b7cb4f0f34c39
-selecionar_colunas|function|a97e5a1611a8ec9a
-erro_release_existente|function|d35fd80100a27227
-distance_percentile|function|b6b8c00d49038e6b
 .Random.seed|object|b7634870f93a6257
-extrair_comeco_logr_uma_palavra|function|958d8fb03643d7ee
-agregar_cnefe|function|2ee007742f48b859
-upload_arquivos|function|c39f77d54c539b76
-padronizar_cnefe|function|5e4707e2093e9796
 code_uf|stem|6da35681b0237b07|4d96518a2bf0f673|2c530c1562a7fbd1|-1524613215||t20364.560464737s|s100b|100|rds|local|vector||code_uf_446319f78fcec68d*code_uf_934bc55ab3ad8d0c*code_uf_1e1a3fb3163a2222*code_uf_ec4f2cdc06cb2c22*code_uf_fc68b7f7b40cc54f*code_uf_aa31f84bf184361f*code_uf_c0916aa2dc6b5b30*code_uf_cf3685ce3c1b1db3*code_uf_fba517401b549c1d*code_uf_052c076623c9f2e6*code_uf_6617b11a7c66ee8e*code_uf_57ea5c9c96396452*code_uf_4096769dbafa7591*code_uf_b56c360f0ffdd258*code_uf_f4790d2d3ff0d60b*code_uf_2bf19d16ecd4fca2*code_uf_390042d89b95c071*code_uf_6f5918b501ae94a9*code_uf_ccae4213e7317059*code_uf_5cfbe16edc625093*code_uf_874665cac837130a*code_uf_4ecf115f732c7c9a*code_uf_b37368a70ac5a51d*code_uf_8c7f19e1fdb50010*code_uf_6b4bf7afec387560*code_uf_09afe80fbb52a14b*code_uf_5c857f7ad9397ed5|8.265||
-versao_dados|stem|82f3247872972265|5722297ffdc8a0e0|2c530c1562a7fbd1|-959350309||t20364.5604647601s|s59b|59|rds|local|vector|||8.265||
 padronizacao_c5110303103f9e99|branch|e62c6820c1cd9572|97d8951db688a7fc|65faa6630200d48e|-827899345|C:/Users/r1701707/Desktop/cnefe_pdr/CNEFE/cnefe_padrao_geocodebr/2022/v0.3.0/microdados|t20364.5604789616s|s1183644460b|1183644460|file|local|vector|padronizacao||19.828|Potentially unsafe or invalid elements have been discarded from R metadata. ℹ Type: 'externalptr' → If you trust the source, you can set `options(arrow.unsafe_metadata = TRUE)` to preserve them.. Potentially unsafe or invalid elements have been discarded from R metadata. ℹ Type: 'externalptr' → If you trust the source, you can set `options(arrow.unsafe_metadata = TRUE)` to preserve them.. Potentially unsafe or invalid elements have been discarded from R metadata. ℹ Type: 'externalptr' → If you trust the source, you can set `options(arrow.unsafe_metadata = TRUE)` to preserve them.|
 padronizacao_0387f0c248e7f664|branch|e62c6820c1cd9572|97d8951db688a7fc|65faa6630200d48e|868657665|C:/Users/r1701707/Desktop/cnefe_pdr/CNEFE/cnefe_padrao_geocodebr/2022/v0.3.0/microdados|t20364.5605033313s|s1183644460b|1183644460|file|local|vector|padronizacao||21.969|Potentially unsafe or invalid elements have been discarded from R metadata. ℹ Type: 'externalptr' → If you trust the source, you can set `options(arrow.unsafe_metadata = TRUE)` to preserve them.. Potentially unsafe or invalid elements have been discarded from R metadata. ℹ Type: 'externalptr' → If you trust the source, you can set `options(arrow.unsafe_metadata = TRUE)` to preserve them.. Potentially unsafe or invalid elements have been discarded from R metadata. ℹ Type: 'externalptr' → If you trust the source, you can set `options(arrow.unsafe_metadata = TRUE)` to preserve them.|
 padronizacao_bd43c314d6a6173e|branch|e62c6820c1cd9572|97d8951db688a7fc|65faa6630200d48e|2103671701|C:/Users/r1701707/Desktop/cnefe_pdr/CNEFE/cnefe_padrao_geocodebr/2022/v0.3.0/microdados|t20364.560614509s|s1183644460b|1183644460|file|local|vector|padronizacao||9|Potentially unsafe or invalid elements have been discarded from R metadata. ℹ Type: 'externalptr' → If you trust the source, you can set `options(arrow.unsafe_metadata = TRUE)` to preserve them.. Potentially unsafe or invalid elements have been discarded from R metadata. ℹ Type: 'externalptr' → If you trust the source, you can set `options(arrow.unsafe_metadata = TRUE)` to preserve them.. Potentially unsafe or invalid elements have been discarded from R metadata. ℹ Type: 'externalptr' → If you trust the source, you can set `options(arrow.unsafe_metadata = TRUE)` to preserve them.|
 padronizacao_623f6cc40d4a47f6|branch|e62c6820c1cd9572|97d8951db688a7fc|65faa6630200d48e|-1189465589|C:/Users/r1701707/Desktop/cnefe_pdr/CNEFE/cnefe_padrao_geocodebr/2022/v0.3.0/microdados|t20364.5608987781s|s1183644460b|1183644460|file|local|vector|padronizacao||28.234|Potentially unsafe or invalid elements have been discarded from R metadata. ℹ Type: 'externalptr' → If you trust the source, you can set `options(arrow.unsafe_metadata = TRUE)` to preserve them.. Potentially unsafe or invalid elements have been discarded from R metadata. ℹ Type: 'externalptr' → If you trust the source, you can set `options(arrow.unsafe_metadata = TRUE)` to preserve them.. Potentially unsafe or invalid elements have been discarded from R metadata. ℹ Type: 'externalptr' → If you trust the source, you can set `options(arrow.unsafe_metadata = TRUE)` to preserve them.|
 padronizacao_972a5de7b21fceed|branch|e62c6820c1cd9572|97d8951db688a7fc|65faa6630200d48e|-685032805|C:/Users/r1701707/Desktop/cnefe_pdr/CNEFE/cnefe_padrao_geocodebr/2022/v0.3.0/microdados|t20364.5610281374s|s1183644460b|1183644460|file|local|vector|padronizacao||46.719|Potentially unsafe or invalid elements have been discarded from R metadata. ℹ Type: 'externalptr' → If you trust the source, you can set `options(arrow.unsafe_metadata = TRUE)` to preserve them.. Potentially unsafe or invalid elements have been discarded from R metadata. ℹ Type: 'externalptr' → If you trust the source, you can set `options(arrow.unsafe_metadata = TRUE)` to preserve them.. Potentially unsafe or invalid elements have been discarded from R metadata. ℹ Type: 'externalptr' → If you trust the source, you can set `options(arrow.unsafe_metadata = TRUE)` to preserve them.|
 padronizacao_34c98d1a2f5b987d|branch|e5b13e531a59a813|97d8951db688a7fc|65faa6630200d48e|1107521963|C:/Users/r1701707/Desktop/cnefe_pdr/CNEFE/cnefe_padrao_geocodebr/2022/v0.3.0/microdados|t20364.5610655847s|s1183644460b|1183644460|file|local|vector|padronizacao||||Error hashing output: timed out after retrying for 69.780999999959 seconds. Path C:/Users/r1701707/Desktop/cnefe_pdr/CNEFE/cnefe_padrao_geocodebr/2022/v0.3.0/microdados does not exist or has incorrect hash. File sync timed out.
+versao_dados|stem|d35e6bdeeee8e89a|af1e3b62f8c8adef|2c530c1562a7fbd1|-959350309||t20466.8207746367s|s59b|59|rds|local|vector|||1.421||
+adicionar_coluna_de_endereco|function|1c7e56e0bbbf1616
+distance_percentile_2step|function|375a77722975bbcb
+get_census_tracts|function|4c851ec555c612d8
+mean_coord_2step|function|781b7cb4f0f34c39
+selecionar_colunas|function|a97e5a1611a8ec9a
+get_aprox_coord|function|e582eec63bc3aece
+erro_release_existente|function|d35fd80100a27227
+distance_percentile|function|b6b8c00d49038e6b
+extrair_comeco_logr_uma_palavra|function|958d8fb03643d7ee
+control_max_paralelo|object|de9e90e8b70cac6e
+get_N_census_tracts|function|56f248c23e670299
+agregar_cnefe|function|87f6e1ab57aa4cef
+distance_percentile_2step_numero|function|69528b264ca24e9e
+mean_coord_2step_numero|function|c458088fd344075b
+upload_arquivos|function|c39f77d54c539b76
+padronizar_cnefe|function|eb3fa91b0098e0cd
+codigo_uf|stem|30108785dc0810d7|79ee93d737e1b626|2c530c1562a7fbd1|-665898849||t20466.8312250892s|s100b|100|rds|local|vector|||1||
