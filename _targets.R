@@ -40,6 +40,7 @@ source("R/upload.R", encoding = "UTF-8")
 list(
   tar_target(versao_dados, "v0.4.0"),
   tar_target(codigo_uf, as.integer(enderecobr::codigos_estados$codigo_estado)),
+
   tar_target(
     padronizacao,
     padronizar_cnefe(state_i = code_uf, versao_dados),

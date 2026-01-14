@@ -8,6 +8,7 @@ padronizacao_623f6cc40d4a47f6|branch|e62c6820c1cd9572|97d8951db688a7fc|65faa6630
 padronizacao_972a5de7b21fceed|branch|e62c6820c1cd9572|97d8951db688a7fc|65faa6630200d48e|-685032805|C:/Users/r1701707/Desktop/cnefe_pdr/CNEFE/cnefe_padrao_geocodebr/2022/v0.3.0/microdados|t20364.5610281374s|s1183644460b|1183644460|file|local|vector|padronizacao||46.719|Potentially unsafe or invalid elements have been discarded from R metadata. ℹ Type: 'externalptr' → If you trust the source, you can set `options(arrow.unsafe_metadata = TRUE)` to preserve them.. Potentially unsafe or invalid elements have been discarded from R metadata. ℹ Type: 'externalptr' → If you trust the source, you can set `options(arrow.unsafe_metadata = TRUE)` to preserve them.. Potentially unsafe or invalid elements have been discarded from R metadata. ℹ Type: 'externalptr' → If you trust the source, you can set `options(arrow.unsafe_metadata = TRUE)` to preserve them.|
 padronizacao_34c98d1a2f5b987d|branch|e5b13e531a59a813|97d8951db688a7fc|65faa6630200d48e|1107521963|C:/Users/r1701707/Desktop/cnefe_pdr/CNEFE/cnefe_padrao_geocodebr/2022/v0.3.0/microdados|t20364.5610655847s|s1183644460b|1183644460|file|local|vector|padronizacao||||Error hashing output: timed out after retrying for 69.780999999959 seconds. Path C:/Users/r1701707/Desktop/cnefe_pdr/CNEFE/cnefe_padrao_geocodebr/2022/v0.3.0/microdados does not exist or has incorrect hash. File sync timed out.
 versao_dados|stem|d35e6bdeeee8e89a|af1e3b62f8c8adef|2c530c1562a7fbd1|-959350309||t20466.8207746367s|s59b|59|rds|local|vector|||1.421||
+codigo_uf|stem|30108785dc0810d7|79ee93d737e1b626|2c530c1562a7fbd1|-665898849||t20466.8312250892s|s100b|100|rds|local|vector|||1||
 adicionar_coluna_de_endereco|function|1c7e56e0bbbf1616
 distance_percentile_2step|function|375a77722975bbcb
 get_census_tracts|function|4c851ec555c612d8
@@ -17,11 +18,11 @@ get_aprox_coord|function|e582eec63bc3aece
 erro_release_existente|function|d35fd80100a27227
 distance_percentile|function|b6b8c00d49038e6b
 extrair_comeco_logr_uma_palavra|function|958d8fb03643d7ee
-control_max_paralelo|object|de9e90e8b70cac6e
+control_max_paralelo|object|359d01a1d6d69d1c
 get_N_census_tracts|function|56f248c23e670299
 agregar_cnefe|function|87f6e1ab57aa4cef
 distance_percentile_2step_numero|function|69528b264ca24e9e
 mean_coord_2step_numero|function|c458088fd344075b
 upload_arquivos|function|c39f77d54c539b76
-padronizar_cnefe|function|eb3fa91b0098e0cd
-codigo_uf|stem|30108785dc0810d7|79ee93d737e1b626|2c530c1562a7fbd1|-665898849||t20466.8312250892s|s100b|100|rds|local|vector|||1||
+padronizar_cnefe|function|7e3169f928d56475
+setores|stem|3a51bd13ec874437|c347d7e2c38cf9af|2c530c1562a7fbd1|1241985953||t20467.7686990491s|s111b|111|rds|local|vector|||1.015||

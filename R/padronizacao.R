@@ -25,72 +25,96 @@ padronizar_cnefe <- function(codigo_uf, versao_dados) {
   cnefe <- suppressWarnings(
     ipeadatalake::ler_cnefe(
       2022,
-      colunas = colunas_a_manter
+      colunas = colunas_a_manter,
+      verboso = FALSE
     )
   ) |>
-    dplyr::filter(code_state == codigo_uf) |>
-    dplyr::mutate(
-      code_tract = stringr::str_remove_all(code_sector, pattern = "[A-Z]$")
-    )
+    dplyr::filter(code_state == codigo_uf)
+  # |>
+  #   dplyr::mutate(
+  #     code_tract = stringr::str_remove_all(code_sector, pattern = "[A-Z]$")
+  #   )
 
-  # determina quais setores que tem pontos com nivel 5 e 6
-  code_tract_nv_56 <- cnefe |>
-    dplyr::filter(nv_geo_coord %in% c(5, 6)) |>
-    # dplyr::pull(code_tract) |>
-    dplyr::select(code_tract) |>
-    unique() |>
-    dplyr::collect()
+  # # determina quais setores que tem pontos com nivel 5 e 6
+  # # suprimimos o mesmo warning comentado acima
 
-  #' garante que usamos apenas codigos existentes em 2022
-  #' a gente sabe q alguns desses codigos sao equivocadamente de 2010
-  #' Ver https://github.com/ipeaGIT/padronizacao_cnefe/issues/16
-  #' fonte do dado original: https://www.ibge.gov.br/geociencias/organizacao-do-territorio/malhas-territoriais/26565-malhas-de-setores-censitarios-divisoes-intramunicipais.html
-  crosswalk <- readRDS('./data_raw/tracts_info.rds')
-  crosswalk <- crosswalk |>
-    dplyr::mutate(
-      dplyr::across(dplyr::contains("code_"), as.character)
-    )
+  # setores_niveis_56 <- cnefe |>
+  #   dplyr::filter(nv_geo_coord %in% c(5, 6)) |>
+  #   dplyr::select(code_tract) |>
+  #   unique()
 
-  df_tracts <- dplyr::left_join(
-    code_tract_nv_56,
-    crosswalk,
-    by = c('code_tract' = 'code_tract_2022')
-  )
-  df_tracts <- dplyr::left_join(
-    df_tracts,
-    crosswalk,
-    by = c('code_tract' = 'code_tract_2010')
-  )
-  df_tracts <- df_tracts |>
-    dplyr::mutate(
-      real_code_22 := ifelse(
-        is.na(code_tract_2022),
-        code_tract,
-        code_tract_2022
-      )
-    )
+  # setores_niveis_56 <- suppressWarnings(dplyr::collect(setores_niveis_56))
 
-  code_tract_nv_56 <- as.numeric(df_tracts$real_code_22)
+  # # alguns códigos encontrados no cnefe fazem referência (equivocadamente) a
+  # # setores de 2010. como queremos listar apenas códigos de 2022, usamos uma
+  # # tabela que faz a equivalência entre setores dos dois anos
+  # #   - ver https://github.com/ipeaGIT/padronizacao_cnefe/issues/16
+  # #   - fonte do dado: https://www.ibge.gov.br/geociencias/organizacao-do-territorio/malhas-territoriais/26565-malhas-de-setores-censitarios-divisoes-intramunicipais.html
 
-  tracts_aceitaveis <- crosswalk |>
-    dplyr::filter(code_tract_2022 %in% code_tract_nv_56) |>
-    dplyr::filter(area_km2_2022 < 0.1)
+  # relacao_setores <- readRDS("data_raw/tracts_info.rds")
+  # relacao_setores <- dplyr::mutate(
+  #   relacao_setores,
+  #   dplyr::across(dplyr::contains("code_"), as.character)
+  # )
 
-  # summary(tracts_aceitaveis$area_km2)
-  tracts_aceitaveis <- tracts_aceitaveis$code_tract
+  # data.table::setDT(setores_niveis_56)
+  # data.table::setDT(relacao_setores)
 
-  #' mantemos apenas endereços com nv_geo_coord <= 4, OU nv_geo_coord 5 e 6 em
-  #' setores censitarios com area menor ou igual a 0.1km2 (equivalente ao H3 res 9)
-  #' nv_geo_coord 5 representa uma localidade (similar a um bairro) e 6 representa
-  #' um setor censitário (que
-  #' pode ter dimensões gigantescas, principalmente em áreas rurais, mais propensas
-  #' a não ter endereços precisos a nível de rua)
+  # setores_niveis_56[,
+  #   codigo_setor_2022 := ifelse(
+  #     code_tract %in% relacao_setores$code_tract_2022,
+  #     code_tract,
+  #     NA
+  #   )
+  # ]
 
-  cnefe <- cnefe |>
-    dplyr::filter(
-      nv_geo_coord <= 4 |
-        code_tract %in% tracts_aceitaveis
-    )
+  # setores_niveis_56[
+  #   relacao_setores,
+  #   on = c(code_tract = "code_tract_2010"),
+  #   codigo_equiv_2022 := i.code_tract_2022
+  # ]
+
+  # df_tracts <- dplyr::left_join(
+  #   setores_niveis_56,
+  #   relacao_setores,
+  #   by = c('code_tract' = 'code_tract_2022')
+  # )
+  # df_tracts <- dplyr::left_join(
+  #   df_tracts,
+  #   relacao_setores,
+  #   by = c('code_tract' = 'code_tract_2010')
+  # )
+
+  # df_tracts <- df_tracts |>
+  #   dplyr::mutate(
+  #     real_code_22 := ifelse(
+  #       is.na(code_tract_2022),
+  #       code_tract,
+  #       code_tract_2022
+  #     )
+  #   )
+
+  # code_tract_nv_56 <- as.numeric(df_tracts$real_code_22)
+
+  # tracts_aceitaveis <- crosswalk |>
+  #   dplyr::filter(code_tract_2022 %in% code_tract_nv_56) |>
+  #   dplyr::filter(area_km2_2022 < 0.1)
+
+  # # summary(tracts_aceitaveis$area_km2)
+  # tracts_aceitaveis <- tracts_aceitaveis$code_tract
+
+  # #' mantemos apenas endereços com nv_geo_coord <= 4, OU nv_geo_coord 5 e 6 em
+  # #' setores censitarios com area menor ou igual a 0.1km2 (equivalente ao H3 res 9)
+  # #' nv_geo_coord 5 representa uma localidade (similar a um bairro) e 6 representa
+  # #' um setor censitário (que
+  # #' pode ter dimensões gigantescas, principalmente em áreas rurais, mais propensas
+  # #' a não ter endereços precisos a nível de rua)
+
+  # cnefe <- cnefe |>
+  #   dplyr::filter(
+  #     nv_geo_coord <= 4 |
+  #       code_tract %in% tracts_aceitaveis
+  #   )
 
   # se numero == 0, setar NA. mantemos como numerico, pois durante o processo de
   # geolocalizacao podemos usa-los para fazer uma interpolacao, e para isso
@@ -117,11 +141,11 @@ padronizar_cnefe <- function(codigo_uf, versao_dados) {
     cnefe,
     nwords_titulo = stringr::str_count(nom_titulo_seglogr, "\\S+")
   ) |>
-    unique(cnefe) |>
-    dplyr::collect()
+    unique()
+
+  cnefe <- suppressWarnings(dplyr::collect(cnefe))
 
   cnefe <- data.table::setDT(cnefe)
-  cnefe[, c("code_address", "nv_geo_coord", "code_sector") := NULL]
 
   cnefe[nwords_titulo == 1, comeco_logr := stringr::word(nom_seglogr, 1, 1)]
   cnefe[nwords_titulo == 2, comeco_logr := stringr::word(nom_seglogr, 1, 2)]
