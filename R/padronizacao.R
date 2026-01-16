@@ -5,7 +5,6 @@ padronizar_cnefe <- function(codigo_uf, versao_dados) {
     "code_address", # identificador
     "code_state", # estado
     "code_muni", # municipio
-    "code_sector", # setor censitario
     "cep", # cep
     "desc_localidade", # bairro, povoado, vila, etc
     "nom_tipo_seglogr", # tipo de logradouro
@@ -30,78 +29,6 @@ padronizar_cnefe <- function(codigo_uf, versao_dados) {
     )
   ) |>
     dplyr::filter(code_state == codigo_uf)
-  # |>
-  #   dplyr::mutate(
-  #     code_tract = stringr::str_remove_all(code_sector, pattern = "[A-Z]$")
-  #   )
-
-  # # determina quais setores que tem pontos com nivel 5 e 6
-  # # suprimimos o mesmo warning comentado acima
-
-  # setores_niveis_56 <- cnefe |>
-  #   dplyr::filter(nv_geo_coord %in% c(5, 6)) |>
-  #   dplyr::select(code_tract) |>
-  #   unique()
-
-  # setores_niveis_56 <- suppressWarnings(dplyr::collect(setores_niveis_56))
-
-  # # alguns códigos encontrados no cnefe fazem referência (equivocadamente) a
-  # # setores de 2010. como queremos listar apenas códigos de 2022, usamos uma
-  # # tabela que faz a equivalência entre setores dos dois anos
-  # #   - ver https://github.com/ipeaGIT/padronizacao_cnefe/issues/16
-  # #   - fonte do dado: https://www.ibge.gov.br/geociencias/organizacao-do-territorio/malhas-territoriais/26565-malhas-de-setores-censitarios-divisoes-intramunicipais.html
-
-  # relacao_setores <- readRDS("data_raw/tracts_info.rds")
-  # relacao_setores <- dplyr::mutate(
-  #   relacao_setores,
-  #   dplyr::across(dplyr::contains("code_"), as.character)
-  # )
-
-  # data.table::setDT(setores_niveis_56)
-  # data.table::setDT(relacao_setores)
-
-  # setores_niveis_56[,
-  #   codigo_setor_2022 := ifelse(
-  #     code_tract %in% relacao_setores$code_tract_2022,
-  #     code_tract,
-  #     NA
-  #   )
-  # ]
-
-  # setores_niveis_56[
-  #   relacao_setores,
-  #   on = c(code_tract = "code_tract_2010"),
-  #   codigo_equiv_2022 := i.code_tract_2022
-  # ]
-
-  # df_tracts <- dplyr::left_join(
-  #   setores_niveis_56,
-  #   relacao_setores,
-  #   by = c('code_tract' = 'code_tract_2022')
-  # )
-  # df_tracts <- dplyr::left_join(
-  #   df_tracts,
-  #   relacao_setores,
-  #   by = c('code_tract' = 'code_tract_2010')
-  # )
-
-  # df_tracts <- df_tracts |>
-  #   dplyr::mutate(
-  #     real_code_22 := ifelse(
-  #       is.na(code_tract_2022),
-  #       code_tract,
-  #       code_tract_2022
-  #     )
-  #   )
-
-  # code_tract_nv_56 <- as.numeric(df_tracts$real_code_22)
-
-  # tracts_aceitaveis <- crosswalk |>
-  #   dplyr::filter(code_tract_2022 %in% code_tract_nv_56) |>
-  #   dplyr::filter(area_km2_2022 < 0.1)
-
-  # # summary(tracts_aceitaveis$area_km2)
-  # tracts_aceitaveis <- tracts_aceitaveis$code_tract
 
   # #' mantemos apenas endereços com nv_geo_coord <= 4, OU nv_geo_coord 5 e 6 em
   # #' setores censitarios com area menor ou igual a 0.1km2 (equivalente ao H3 res 9)
@@ -137,14 +64,13 @@ padronizar_cnefe <- function(codigo_uf, versao_dados) {
   # estabelecimento de saude). como no nosso caso essa diferenca nao importa,
   # mantemos apenas registros unicos.
 
+  cnefe <- unique(cnefe)
   cnefe <- dplyr::mutate(
     cnefe,
     nwords_titulo = stringr::str_count(nom_titulo_seglogr, "\\S+")
-  ) |>
-    unique()
+  )
 
   cnefe <- suppressWarnings(dplyr::collect(cnefe))
-
   cnefe <- data.table::setDT(cnefe)
 
   cnefe[nwords_titulo == 1, comeco_logr := stringr::word(nom_seglogr, 1, 1)]
@@ -178,7 +104,8 @@ padronizar_cnefe <- function(codigo_uf, versao_dados) {
 
   cnefe[, nwords_tipo := stringr::str_count(nom_tipo_seglogr, "\\S+")]
 
-  extrair_comeco_logr_uma_palavra(cnefe)
+  #extrair_comeco_logr_uma_palavra(cnefe)
+  cnefe[nwords_tipo == 1, comeco_logr := stringr::word(nome_logradouro, 1, 1)]
   cnefe[nwords_tipo == 2, comeco_logr := stringr::word(nome_logradouro, 1, 2)]
   cnefe[nwords_tipo == 3, comeco_logr := stringr::word(nome_logradouro, 1, 3)]
   cnefe[nwords_tipo == 4, comeco_logr := stringr::word(nome_logradouro, 1, 4)]
@@ -236,13 +163,17 @@ padronizar_cnefe <- function(codigo_uf, versao_dados) {
       "numero",
       "logradouro",
       "lon",
-      "lat"
+      "lat",
+      "code_address",
+      "nv_geo_coord"
     )
   )
 
-  cnefe <- cnefe[order(estado, municipio, logradouro, numero, cep, localidade)]
+  cnefe <- cnefe[order(municipio, logradouro, numero, cep, localidade)]
 
-  # remove data table index
+  # removendo indice do datatable e convertendo pra dataframe, para diminuir o
+  # tamanho do objeto final e evitar problemas na leitura do parquet
+
   data.table::setindex(cnefe, NULL)
   data.table::setDF(cnefe)
 
@@ -257,17 +188,14 @@ padronizar_cnefe <- function(codigo_uf, versao_dados) {
     logradouro = arrow::large_utf8(),
     lon = arrow::float64(),
     lat = arrow::float64(),
-    code_tract = arrow::string()
+    code_address = arrow::int32(),
+    nv_geo_coord = arrow::int8()
   )
 
   cnefe_arrow <- arrow::as_arrow_table(cnefe, schema = schema_cnefe)
 
-  # dir_dados <- file.path(
-  #   Sys.getenv("PUBLIC_DATA_PATH"),
-  #   "CNEFE/cnefe_padrao_geocodebr"
-  # )
   dir_dados <- file.path(
-    "C:/Users/r1701707/Desktop/cnefe_pdr",
+    Sys.getenv("PUBLIC_DATA_PATH"),
     "CNEFE/cnefe_padrao_geocodebr"
   )
 
@@ -276,15 +204,18 @@ padronizar_cnefe <- function(codigo_uf, versao_dados) {
     dir.create(dir_ano, recursive = TRUE)
   }
 
-  arrow::write_dataset(
-    cnefe_arrow,
-    path = dir_ano,
-    format = "parquet",
-    partitioning = "estado",
-    hive_style = TRUE
-  )
+  sigla_uf <- enderecobr::padronizar_estados(codigo_uf, formato = "sigla")
 
-  return(dir_ano)
+  dir_estado <- file.path(dir_ano, glue::glue("estado={sigla_uf}"))
+  if (!dir.exists(dir_estado)) {
+    dir.create(dir_estado)
+  }
+
+  arq_destino <- file.path(dir_estado, "part-0.parquet")
+
+  arrow::write_parquet(cnefe_arrow, arq_destino)
+
+  return(arq_destino)
 }
 
 extrair_comeco_logr_uma_palavra <- function(cnefe) {

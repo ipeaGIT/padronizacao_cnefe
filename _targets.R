@@ -33,30 +33,38 @@ tar_option_set(
   )
 )
 
-source("R/padronizacao.R", encoding = "UTF-8")
-source("R/agregacao.R", encoding = "UTF-8")
-source("R/upload.R", encoding = "UTF-8")
+tar_source()
 
 list(
-  tar_target(versao_dados, "v0.4.0"),
-  tar_target(codigo_uf, as.integer(enderecobr::codigos_estados$codigo_estado)),
+  tar_target(versao_dados, "v0.4.0", deployment = "main"),
+  tar_target(
+    codigo_uf,
+    as.integer(enderecobr::codigos_estados$codigo_estado),
+    deployment = "main"
+  ),
 
+  tar_target(
+    identificacao_setor,
+    identificar_setores(codigo_uf),
+    pattern = map(codigo_uf),
+    format = "file"
+  ),
   tar_target(
     padronizacao,
-    padronizar_cnefe(state_i = code_uf, versao_dados),
-    pattern = map(code_uf),
+    padronizar_cnefe(codigo_uf, versao_dados),
+    pattern = map(codigo_uf),
     format = "file"
-  ),
+  )
 
-  # seria ideal achar uma forma de paralelizar a agregacao pq eh a etapa mais demorada
-  tar_target(
-    name = agregacao,
-    command = agregar_cnefe(
-      endereco_cnefe = padronizacao,
-      versao_dados = versao_dados
-    ),
-    format = "file"
-  ),
+  # # seria ideal achar uma forma de paralelizar a agregacao pq eh a etapa mais demorada
+  # tar_target(
+  #   name = agregacao,
+  #   command = agregar_cnefe(
+  #     endereco_cnefe = padronizacao,
+  #     versao_dados = versao_dados
+  #   ),
+  #   format = "file"
+  # ),
 
-  tar_target(name = upload, command = upload_arquivos(agregacao, versao_dados))
+  # tar_target(name = upload, command = upload_arquivos(agregacao, versao_dados))
 )
