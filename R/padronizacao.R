@@ -30,13 +30,6 @@ padronizar_cnefe <- function(codigo_uf, versao_dados) {
   ) |>
     dplyr::filter(code_state == codigo_uf)
 
-  # #' mantemos apenas endereços com nv_geo_coord <= 4, OU nv_geo_coord 5 e 6 em
-  # #' setores censitarios com area menor ou igual a 0.1km2 (equivalente ao H3 res 9)
-  # #' nv_geo_coord 5 representa uma localidade (similar a um bairro) e 6 representa
-  # #' um setor censitário (que
-  # #' pode ter dimensões gigantescas, principalmente em áreas rurais, mais propensas
-  # #' a não ter endereços precisos a nível de rua)
-
   # cnefe <- cnefe |>
   #   dplyr::filter(
   #     nv_geo_coord <= 4 |
@@ -92,19 +85,11 @@ padronizar_cnefe <- function(codigo_uf, versao_dados) {
 
   # tambem pode acontecer do nome do logradouro incluir o tipo do logradouro.
   # dessa forma, fazemos um procedimento analogo ao feito acima, pra eliminar
-  # eventuais redundâncias.
-  #
-  # quase todas os registros envolvem tipos de logradouro compostos por apenas
-  # uma palavra (106~ milhões de observações), o que faz com que a função
-  # stringr::word() use muita memória e crashe o R. então usamos uma função
-  # auxiliar para calcular comeco_logr em batches nesse caso.
-  #
-  # no fim dessa sequência, atualizamos o nome do logradouro para remover o tipo
-  # que estava embutido
+  # eventuais redundâncias. no fim dessa sequência, atualizamos o nome do
+  # logradouro para remover o tipo que estava embutido
 
   cnefe[, nwords_tipo := stringr::str_count(nom_tipo_seglogr, "\\S+")]
 
-  #extrair_comeco_logr_uma_palavra(cnefe)
   cnefe[nwords_tipo == 1, comeco_logr := stringr::word(nome_logradouro, 1, 1)]
   cnefe[nwords_tipo == 2, comeco_logr := stringr::word(nome_logradouro, 1, 2)]
   cnefe[nwords_tipo == 3, comeco_logr := stringr::word(nome_logradouro, 1, 3)]
@@ -216,22 +201,4 @@ padronizar_cnefe <- function(codigo_uf, versao_dados) {
   arrow::write_parquet(cnefe_arrow, arq_destino)
 
   return(arq_destino)
-}
-
-extrair_comeco_logr_uma_palavra <- function(cnefe) {
-  indices <- which(cnefe$nwords_tipo == 1)
-  divisao_grupo <- cut(indices, breaks = 10)
-
-  grupos <- split(indices, divisao_grupo)
-
-  resultado <- lapply(
-    grupos,
-    function(is) stringr::word(cnefe[is]$nome_logradouro, 1, 1)
-  )
-
-  resultado <- unlist(resultado)
-
-  cnefe[nwords_tipo == 1, comeco_logr := resultado]
-
-  return(invisible(cnefe[]))
 }

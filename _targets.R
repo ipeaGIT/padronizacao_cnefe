@@ -54,17 +54,22 @@ list(
     padronizar_cnefe(codigo_uf, versao_dados),
     pattern = map(codigo_uf),
     format = "file"
+  ),
+  tar_target(
+    agregacao,
+    agregar_cnefe(padronizacao, identificacao_setor, versao_dados),
+    pattern = map(padronizacao, identificacao_setor),
+    format = "file"
+  ),
+  tar_target(
+    uniao_agregados,
+    unir_cnefe_agregado(agregacao, versao_dados),
+    format = "file",
+    deployment = "main"
+  ),
+  tar_target(
+    upload,
+    upload_arquivos(uniao_agregados, versao_dados),
+    deployment = "main"
   )
-
-  # # seria ideal achar uma forma de paralelizar a agregacao pq eh a etapa mais demorada
-  # tar_target(
-  #   name = agregacao,
-  #   command = agregar_cnefe(
-  #     endereco_cnefe = padronizacao,
-  #     versao_dados = versao_dados
-  #   ),
-  #   format = "file"
-  # ),
-
-  # tar_target(name = upload, command = upload_arquivos(agregacao, versao_dados))
 )

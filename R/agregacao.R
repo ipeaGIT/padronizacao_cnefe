@@ -1,35 +1,35 @@
-# endereco_cnefe <- tar_read(padronizacao)
+# arq_cnefe <- tar_read(padronizacao, branches = 1)
+# arq_setores <- tar_read(identificacao_setor, branches = 1)
 # versao_dados <- tar_read(versao_dados)
-agregar_cnefe <- function(endereco_cnefe, versao_dados) {
+agregar_cnefe <- function(arq_cnefe, arq_setores, versao_dados) {
+  data.table::setDTthreads(1)
 
-  data.table::setDTthreads(percent = 50)
-  sf::sf_use_s2(use_s2 = FALSE)
+  cnefe <- data.table::setDT(arrow::read_parquet(arq_cnefe))
+  setores <- data.table::setDT(arrow::read_parquet(arq_setores))
 
-  cnefe <- arrow::open_dataset(endereco_cnefe) |>
-    # dplyr::filter(estado == state_i) |>
-    #  dplyr::filter(municipio == 'SEROPEDICA') |>
-    dplyr::collect()
+  cnefe[
+    setores,
+    on = c(code_address = "code_address"),
+    `:=`(cod_setor = i.cod_setor, area_km2 = i.area_km2)
+  ]
 
-  data.table::setDT(cnefe)
+  # mantemos apenas endereços com nv_geo_coord <= 4 OU nv_geo_coord 5 e 6 em
+  # setores censitarios com area menor ou igual a 0.1 km2 (equivalente a uma
+  # celula h3 res 9).
+  # nv_geo_coord 5 representa uma localidade (similar a um bairro), e 6
+  # representa um setor censitário (que pode ter dimensões gigantescas,
+  # principalmente em áreas rurais, mais propensas a não ter endereços precisos
+  # a nível de rua).
 
-  # dir_dados <- file.path(
-  #   Sys.getenv("PUBLIC_DATA_PATH"),
-  #   "CNEFE/cnefe_padrao_geocodebr"
-  # )
-  dir_dados <- file.path(
-    "C:/Users/r1701707/Desktop/cnefe_pdr",
-    "CNEFE/cnefe_padrao_geocodebr"
-  )
-
-  dir_agreg <- file.path(dir_dados, "2022", versao_dados, "dados_agregados")
-  if (!dir.exists(dir_agreg)) dir.create(dir_agreg, recursive = TRUE)
+  cnefe <- cnefe[nv_geo_coord <= 4 | (nv_geo_coord %in% 5:6 & area_km2 <= 0.1)]
 
   # temos 12 possíveis casos de agregação. para cada um desses casos,
   # selecionamos as colunas que devem ser usadas e calculamos a média das
   # coordenadas usando essas colunas como grupos
 
-  for (caso in 1:12) {
+  arqs_destino <- vector("character", length = 12)
 
+  for (caso in 1:12) {
     cli::cli_progress_step(glue::glue("Agregando caso {caso}"))
 
     colunas_agregacao <- selecionar_colunas(caso)
@@ -41,9 +41,11 @@ agregar_cnefe <- function(endereco_cnefe, versao_dados) {
     # exemplo, que dois endereços sem número no mesmo logradouro com mesmo cep e
     # bairro sejam de fato o mesmo endereço. podem ser, por exemplo, dois
     # endereços em extremos opostos da rua, mas igualmente sem número. logo,
-    # nesses casos removemos endereços sem número
+    # nesses casos, removemos endereços sem número
 
-    if (caso <= 4) cnefe_filtrado <- cnefe_filtrado[!is.na(numero)]
+    if (caso <= 4) {
+      cnefe_filtrado <- cnefe_filtrado[!is.na(numero)]
+    }
 
     # de forma similar, para os casos de 1 a 8 o logradouro é uma informação
     # relevante. o CNEFE usa o nome "SEM DENOMINACAO" para identificar
@@ -52,29 +54,36 @@ agregar_cnefe <- function(endereco_cnefe, versao_dados) {
     # removê-los quando o logradouro é uma variável de identificação relevante
 
     if (caso <= 8) {
-      cnefe_filtrado <- cnefe_filtrado[!grepl("SEM DENOMINACAO", nome_logradouro, fixed = TRUE)]
-      cnefe_filtrado <- cnefe_filtrado[!grepl("PROJETAD(A|O)", nome_logradouro, perl = TRUE)]
-      cnefe_filtrado <- cnefe_filtrado[!grepl("PARTICULAR", nome_logradouro, fixed = TRUE)]
+      cnefe_filtrado <- cnefe_filtrado[
+        !grepl("SEM DENOMINACAO", nome_logradouro, fixed = TRUE)
+      ]
+      cnefe_filtrado <- cnefe_filtrado[
+        !grepl("PROJETAD(A|O)", nome_logradouro, perl = TRUE)
+      ]
+      cnefe_filtrado <- cnefe_filtrado[
+        !grepl("PARTICULAR", nome_logradouro, fixed = TRUE)
+      ]
     }
 
     # agora fazemos a agregacao, de fato, usando as colunas selecionadas
     # anteriormente como grupos
 
-    cnefe_agregado <- cnefe_filtrado[
-      ,
-      .(n_casos = .N,
-        lon = mean_coord_2step(lon, lat, returned_coord='lon', .95),
-        lat = mean_coord_2step(lon, lat, returned_coord='lat', .95),
-        desvio_metros = distance_percentile_2step(lon,lat, percentile = .95),
-        code_tract = get_census_tracts(code_tract)
-        ),
+    cnefe_agregado <- cnefe_filtrado[,
+      .(
+        n_casos = .N,
+        lon = coord_media_duas_etapas(lon, lat, "lon", 0.95),
+        lat = coord_media_duas_etapas(lon, lat, "lat", 0.95),
+        desvio_metros = desvio_duas_etapas(lon, lat, 0.95),
+        cod_setor = agregar_setor(cod_setor)
+      ),
       by = colunas_agregacao
     ]
 
-    # add 5.8 meters based on the best gps precision of cnefe
-    # https://biblioteca.ibge.gov.br/visualizacao/livros/liv102063.pdf
-    cnefe_agregado[, desvio_metros := desvio_metros + 6]
+    # adiciona 5.8 (arredondando, 6) metros ao desvio calculado, baseado no
+    # erro minimo do GPS usado pela equipe do CNEFE
+    # fonte: https://biblioteca.ibge.gov.br/visualizacao/livros/liv102063.pdf
 
+    cnefe_agregado[, desvio_metros := desvio_metros + 6]
 
     # adicionamos coluna com o endereço completo, escrito por extenso. essa
     # informação é importante para que os usuários do geocodebr saibam o
@@ -87,12 +96,11 @@ agregar_cnefe <- function(endereco_cnefe, versao_dados) {
       c(colunas_agregacao, "endereco_completo", "n_casos", "lon", "lat")
     )
 
-    # remove data table index
+    # removendo indice do datatable e convertendo pra dataframe, para diminuir o
+    # tamanho do objeto final e evitar problemas na leitura do parquet
+
     data.table::setindex(cnefe_agregado, NULL)
     data.table::setDF(cnefe_agregado)
-
-    # convertemos de volta para arrow para definirmos o schema e o tipo de cada
-    # coluna
 
     schema_cnefe <- arrow::schema(
       estado = arrow::string(),
@@ -106,11 +114,19 @@ agregar_cnefe <- function(endereco_cnefe, versao_dados) {
       lon = arrow::float64(),
       lat = arrow::float64(),
       desvio_metros = arrow::float(),
-      code_tract = arrow::string()
+      cod_setor = arrow::utf8()
     )
 
     schema_arquivo <- schema_cnefe[
-      c(colunas_agregacao, "endereco_completo", "n_casos", "lon", "lat", "desvio_metros", "code_tract")
+      c(
+        colunas_agregacao,
+        "endereco_completo",
+        "n_casos",
+        "lon",
+        "lat",
+        "desvio_metros",
+        "cod_setor"
+      )
     ]
 
     cnefe_agregado <- arrow::as_arrow_table(
@@ -118,27 +134,45 @@ agregar_cnefe <- function(endereco_cnefe, versao_dados) {
       schema = schema_arquivo
     )
 
-    # cada versão agregada é salva com o nome das colunas usadas na agregação.
-    # apenas omitimos a coluna "estado", presente em todas as agregações
+    # arquivos são salvos em esquema particionado por estado, em pastas
+    # nomeadas a partir do tipo de agregação. para nomear o tipo, usamos os
+    # nomes das colunas usadas na agregação, apenas omitindo a coluna
+    # "estado", presente em todas as agregações
 
-    nome_arquivo <- setdiff(colunas_agregacao, "estado")
-    nome_arquivo <- paste(nome_arquivo, collapse = "_")
-    nome_arquivo <- glue::glue("{nome_arquivo}.parquet")
+    nome_agregacao <- setdiff(colunas_agregacao, "estado")
+    nome_agregacao <- paste(nome_agregacao, collapse = "_")
 
-    endereco_arquivo <- file.path(dir_agreg, nome_arquivo)
+    sigla_uf <- stringr::str_extract(arq_cnefe, "estado=[A-Z]{2}")
+    sigla_uf <- sub("estado=", "", sigla_uf)
 
-    # salva parquet compactado
+    dir_estado <- file.path(
+      Sys.getenv("PUBLIC_DATA_PATH"),
+      "CNEFE/cnefe_padrao_geocodebr/2022",
+      versao_dados,
+      "dados_agregados_particionados",
+      nome_agregacao,
+      glue::glue("estado={sigla_uf}")
+    )
+
+    if (!dir.exists(dir_estado)) {
+      dir.create(dir_estado, recursive = TRUE)
+    }
+
+    arq_destino <- file.path(dir_estado, "part-0.parquet")
+
     arrow::write_parquet(
-      x = cnefe_agregado,
-      sink = endereco_arquivo,
-      compression='zstd',
+      cnefe_agregado,
+      arq_destino,
+      compression = "zstd",
       compression_level = 22
-      )
+    )
+
+    arqs_destino[caso] <- arq_destino
 
     cli::cli_progress_done()
   }
 
-  return(dir_agreg)
+  return(arqs_destino)
 }
 
 selecionar_colunas <- function(caso) {
@@ -199,8 +233,7 @@ adicionar_coluna_de_endereco <- function(cnefe_agregado, colunas_agregacao) {
     cnefe_agregado[, .campo_est := estado]
   }
 
-  cnefe_agregado[
-    ,
+  cnefe_agregado[,
     endereco_completo := paste0(.campo_log, .campo_loc, .campo_est)
   ]
 
@@ -210,40 +243,35 @@ adicionar_coluna_de_endereco <- function(cnefe_agregado, colunas_agregacao) {
 }
 
 
-
-
-
 # coordenada media -------------------------------------------------------------
 
-# coodenada media em duas etapas
-mean_coord_2step <- function(lon_vec, lat_vec, returned_coord, percentile) {
+# df <- cnefe_filtrado[municipio == "PORTO VELHO" & logradouro == "AVENIDA PREFEITO CHIQUILITO ERSE" & numero == 5064 & cep == "76820-370" & localidade == "NOVA ESPERANCA"]
+# lon <- df$lon
+# lat <- df$lat
+# coord_desejada <- "lon"
+# percentil <- 0.95
+coord_media_duas_etapas <- function(lon, lat, coord_desejada, percentil) {
+  pontos <- matrix(c(lon, lat), ncol = 2)
 
-  # lon_vec <- dt2$lon
-  # lat_vec <- dt2$lat
+  centroide <- matrix(c(mean(lon), mean(lat)), ncol = 2)
 
-  points_matrix <- matrix(c(lon_vec, lat_vec), ncol = 2)
+  dists <- raster::pointDistance(centroide, pontos, lonlat = TRUE)
 
-  # get centroid
-  points_centroid <- matrix(c(mean(lon_vec), mean(lat_vec)), ncol = 2)
+  limite_distancia <- quantile(dists, probs = percentil)
 
-  dist_vec <- raster::pointDistance(points_centroid, points_matrix, lonlat = T)
+  esta_dentro_do_limite <- dists <= limite_distancia
 
-  dist_threshol_p95 <- quantile(dist_vec, probs = percentile, names = FALSE)
-  dist_index <- dist_vec < dist_threshol_p95
+  if (coord_desejada == "lat") {
+    media_percentil <- mean(lat[esta_dentro_do_limite])
+  } else {
+    media_percentil <- mean(lon[esta_dentro_do_limite])
+  }
 
-  if (returned_coord == 'lat') {
-    coord <- lat_vec[dist_index]
-    } else {
-      coord <- lon_vec[dist_index]
-      }
-
-  return(mean(coord))
-
+  return(media_percentil)
 }
 
 # distance q cobre x% de todos pontos
 distance_percentile <- function(lon_vec, lat_vec, percentile) {
-
   # lon_vec <- dt$lon
   # lat_vec <- dt$lat
 
@@ -259,48 +287,51 @@ distance_percentile <- function(lon_vec, lat_vec, percentile) {
   return(dist_m)
 }
 
-# distance q cobre x% de todos pontos em duas etapas
-distance_percentile_2step <- function(lon_vec, lat_vec, percentile) {
+# df <- cnefe_filtrado[municipio == "PORTO VELHO" & logradouro == "AVENIDA PREFEITO CHIQUILITO ERSE" & numero == 5064 & cep == "76820-370" & localidade == "NOVA ESPERANCA"]
+# lon <- df$lon
+# lat <- df$lat
+# coord_desejada <- "lon"
+# percentil <- 0.95
+desvio_duas_etapas <- function(lon, lat, percentil) {
+  # calcula o raio que cobre todos os pontos no percential 95 de distância para
+  # o centroide
 
-  # lon_vec <- dt2$lon
-  # lat_vec <- dt2$lat
+  pontos <- matrix(c(lon, lat), ncol = 2)
 
-  points_matrix <- matrix(c(lon_vec, lat_vec), ncol = 2)
+  centroide <- matrix(c(mean(lon), mean(lat)), ncol = 2)
 
-  # get centroid
-  points_centroid <- matrix(c(mean(lon_vec), mean(lat_vec)), ncol = 2)
+  dists <- raster::pointDistance(centroide, pontos, lonlat = TRUE)
 
-  dist_vec <- raster::pointDistance(points_centroid, points_matrix, lonlat = T)
+  limite_distancia <- quantile(dists, probs = percentil)
 
-  dist_threshol_p95 <- quantile(dist_vec, probs = percentile, names = FALSE)
-  dist_index <- dist_vec <= dist_threshol_p95
+  esta_dentro_do_limite <- dists <= limite_distancia
 
-  lon_p95 <- lon_vec[dist_index]
-  lat_p95 <- lat_vec[dist_index]
+  # FIXME: ISSO AQUI ESTÁ CORRETO? FALAR COM O RAFA DEPOIS
+  # não era pra pegar os pontos que ambos lat e lon estão dentro do percentil
+  # 95? do jeito que está hoje em dia, estão sendo criados pontos que não
+  # existem na prática
 
-  points_matrix_p95 <- matrix(c(lon_p95, lat_p95), ncol = 2)
-  points_centroid_p95 <- matrix(c(mean(lon_p95), mean(lat_p95)), ncol = 2)
+  lon_p95 <- lon[esta_dentro_do_limite]
+  lat_p95 <- lon[esta_dentro_do_limite]
 
-  dist_m <- raster::pointDistance(points_centroid_p95, points_matrix_p95, lonlat = T)
-  dist_m <- round(max(dist_m), 1)
+  pontos_p95 <- matrix(c(lon_p95, lat_p95), ncol = 2)
+  centroide_p95 <- matrix(c(mean(lon_p95), mean(lat_p95)), ncol = 2)
 
-  # distancia do raio q cobre todos pontos p95
-  return(dist_m)
+  dists_p95 <- raster::pointDistance(centroide_p95, pontos_p95, lonlat = TRUE)
+  dists_p95 <- round(max(dists_p95), 1)
+
+  return(dists_p95)
 }
-
-
-
 
 
 # coordenada media com aproximacao linear do numero ----------------------------
 
 # encontra coodenada media por aproximacao linear
 get_aprox_coord <- function(numero_vec, coord) {
-
   # numero_vec = cnefe_filtrado$numero
   # coord = cnefe_filtrado$lat
 
-  if (length(unique(numero_vec))<3) {
+  if (length(unique(numero_vec)) < 3) {
     return(mean(coord))
   }
 
@@ -317,8 +348,13 @@ get_aprox_coord <- function(numero_vec, coord) {
 }
 
 # coodenada media em duas etapas com aproximacao linear
-mean_coord_2step_numero <- function(numero_vec, lon_vec, lat_vec, returned_coord, percentile) {
-
+mean_coord_2step_numero <- function(
+  numero_vec,
+  lon_vec,
+  lat_vec,
+  returned_coord,
+  percentile
+) {
   # lon_vec <- cnefe_filtrado$lon
   # lat_vec <- cnefe_filtrado$lat
   # numero_vec <- cnefe_filtrado$numero
@@ -333,10 +369,10 @@ mean_coord_2step_numero <- function(numero_vec, lon_vec, lat_vec, returned_coord
   }
 
   # se todos pontos sao identicos, retorna o 1o
-  if ( returned_coord == 'lat' & all(lat_vec == lat_vec[1]) ) {
+  if (returned_coord == 'lat' & all(lat_vec == lat_vec[1])) {
     return(lat_vec[1])
   }
-  if ( returned_coord == 'lon' & all(lon_vec == lon_vec[1]) ) {
+  if (returned_coord == 'lon' & all(lon_vec == lon_vec[1])) {
     return(lon_vec[1])
   }
 
@@ -348,8 +384,6 @@ mean_coord_2step_numero <- function(numero_vec, lon_vec, lat_vec, returned_coord
   lon_aprox <- get_aprox_coord(numero_vec, lon_vec)
   lat_aprox <- get_aprox_coord(numero_vec, lat_vec)
   points_centroid <- matrix(c(lon_aprox, lat_aprox), ncol = 2)
-
-
 
   # calcula distancias
   dist_vec <- raster::pointDistance(points_centroid, points_matrix, lonlat = T)
@@ -369,23 +403,26 @@ mean_coord_2step_numero <- function(numero_vec, lon_vec, lat_vec, returned_coord
   coord_aprox <- get_aprox_coord(numero_vec, coord)
 
   return(coord_aprox)
-
 }
 
 # distance q cobre x% de todos pontos em duas etapas com aproximacao linear
-distance_percentile_2step_numero <- function(numero_vec, lon_vec, lat_vec, percentile) {
-
+distance_percentile_2step_numero <- function(
+  numero_vec,
+  lon_vec,
+  lat_vec,
+  percentile
+) {
   # lon_vec <- cnefe_filtrado$lon
   # lat_vec <- cnefe_filtrado$lat
   # numero_vec <- cnefe_filtrado$numero
 
   # se tem um unico ponto, entao retorna ele sem calcular distancia algua
-  if (length(lon_vec)==1) {
+  if (length(lon_vec) == 1) {
     return(0)
   }
 
   # se todos pontos sao identicos, retorna o 1o
-  if ( all(lon_vec == lon_vec[1]) & all(lat_vec == lat_vec[1]) ) {
+  if (all(lon_vec == lon_vec[1]) & all(lat_vec == lat_vec[1])) {
     return(0)
   }
 
@@ -418,7 +455,11 @@ distance_percentile_2step_numero <- function(numero_vec, lon_vec, lat_vec, perce
   points_centroid_p95 <- matrix(c(lon_p95, lat_p95), ncol = 2)
 
   # calcula as distancias
-  dist_m <- raster::pointDistance(points_centroid_p95, points_matrix_p95, lonlat = T)
+  dist_m <- raster::pointDistance(
+    points_centroid_p95,
+    points_matrix_p95,
+    lonlat = T
+  )
 
   # distancia do raio q cobre todos pontos p95
   dist_m <- round(max(dist_m), 1)
@@ -427,30 +468,20 @@ distance_percentile_2step_numero <- function(numero_vec, lon_vec, lat_vec, perce
 }
 
 
-
 # seleciona setor censitario ---------------------------------------------------
 
-get_census_tracts <- function(code_tract_vec){
+agregar_setor <- function(cod_setor) {
+  vetor_setores <- unique(cod_setor)
 
-  # code_tract_vec <- cnefe_filtrado$code_tract
+  if (length(vetor_setores) == 1) {
+    return(vetor_setores)
+  }
 
-  code_tract_vec <- unique(code_tract_vec)
-
-  ## solucao concatenando tracts candidatos
-  # code_tract_concat <- paste0(code_tract_vec, collapse = "_")
-  #return(code_tract_concat)
-
-  ## solucao só retorna quando é um unico tract
-  code_tract_vec <- ifelse(length(code_tract_vec)==1, code_tract_vec, NA_character_)
-
-  return(code_tract_vec)
-
+  return(NA_character_)
 }
 
-get_N_census_tracts <- function(code_tract_vec){
-
+get_N_census_tracts <- function(code_tract_vec) {
   # code_tract_vec <- cnefe_filtrado$code_tract
   code_tract_vec <- unique(code_tract_vec)
   return(length(code_tract_vec))
-
 }
