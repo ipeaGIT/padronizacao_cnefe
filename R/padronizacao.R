@@ -1,4 +1,4 @@
-# codigo_uf <- tar_read(codigo_uf)[[1]]
+#  <- tar_read(codigo_uf)[[1]]
 # versao_dados <- tar_read(versao_dados)
 padronizar_cnefe <- function(codigo_uf, versao_dados) {
   colunas_a_manter <- c(
@@ -21,14 +21,15 @@ padronizar_cnefe <- function(codigo_uf, versao_dados) {
   #   ℹ Type: "externalptr"
   #   → If you trust the source, you can set `options(arrow.unsafe_metadata = TRUE)` to preserve them.
 
-  cnefe <- suppressWarnings(
+   cnefe <- suppressWarnings(
     ipeadatalake::ler_cnefe(
       2022,
       colunas = colunas_a_manter,
       verboso = FALSE
-    )
-  ) |>
-    dplyr::filter(code_state == codigo_uf)
+    )) |>
+    dplyr::filter(code_state == codigo_uf) |>
+    unique() # e os predios 6666
+
 
   # cnefe <- cnefe |>
   #   dplyr::filter(
@@ -57,7 +58,6 @@ padronizar_cnefe <- function(codigo_uf, versao_dados) {
   # estabelecimento de saude). como no nosso caso essa diferenca nao importa,
   # mantemos apenas registros unicos.
 
-  cnefe <- unique(cnefe)
   cnefe <- dplyr::mutate(
     cnefe,
     nwords_titulo = stringr::str_count(nom_titulo_seglogr, "\\S+")
@@ -98,6 +98,7 @@ padronizar_cnefe <- function(codigo_uf, versao_dados) {
   cnefe[nom_tipo_seglogr == comeco_logr, juntar := FALSE]
   cnefe[is.na(juntar), juntar := TRUE]
 
+
   cnefe[,
     logradouro := ifelse(
       juntar,
@@ -117,6 +118,21 @@ padronizar_cnefe <- function(codigo_uf, versao_dados) {
 
   cnefe[, c("nwords_tipo", "comeco_logr", "juntar") := NULL]
 
+
+  # tipo de logradouro EDF (edificio) deve ficar vazio
+  # cnefe[ logradouro %like% "EDF "]
+  # camila, checar
+  cnefe[, logradouro := stringr::str_replace(
+    logradouro,
+    pattern = "EDF ",
+    replacement = "")
+  ]
+
+  # camila, checar
+  cnefe[,
+        logradouro := enderecobr::padronizar_logradouros(logradouro)
+  ]
+
   cnefe[,
     estado := enderecobr::padronizar_estados(code_state, formato = "sigla")
   ]
@@ -127,7 +143,8 @@ padronizar_cnefe <- function(codigo_uf, versao_dados) {
 
   cnefe[, cep := enderecobr::padronizar_ceps(cep)]
 
-  cnefe[, numero := num_adress]
+  # camila, checar
+  cnefe[, numero := enderecobr::padronizar_numeros(num_adress, formato = "integer")]
   cnefe[, num_adress := NULL]
 
   data.table::setnames(
@@ -135,6 +152,9 @@ padronizar_cnefe <- function(codigo_uf, versao_dados) {
     old = c("desc_localidade", "nom_tipo_seglogr"),
     new = c("localidade", "tipo_logradouro")
   )
+
+  # camila, checar
+  cnefe[, localidade := enderecobr::padronizar_bairros(localidade)]
 
   data.table::setcolorder(
     cnefe,
@@ -155,6 +175,8 @@ padronizar_cnefe <- function(codigo_uf, versao_dados) {
   )
 
   cnefe <- cnefe[order(municipio, logradouro, numero, cep, localidade)]
+
+  # cnefe[ nome_logradouro %like% "SQS 308"]
 
   # removendo indice do datatable e convertendo pra dataframe, para diminuir o
   # tamanho do objeto final e evitar problemas na leitura do parquet
@@ -179,10 +201,7 @@ padronizar_cnefe <- function(codigo_uf, versao_dados) {
 
   cnefe_arrow <- arrow::as_arrow_table(cnefe, schema = schema_cnefe)
 
-  dir_dados <- file.path(
-    Sys.getenv("PUBLIC_DATA_PATH"),
-    "CNEFE/cnefe_padrao_geocodebr"
-  )
+  dir_dados <- file.path("./data/CNEFE/cnefe_padrao_geocodebr")
 
   dir_ano <- file.path(dir_dados, "2022", versao_dados, "microdados")
   if (!dir.exists(dir_ano)) {
