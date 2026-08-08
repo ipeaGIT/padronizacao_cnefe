@@ -1,75 +1,126 @@
-options(
-  "piggyback.verbose" = TRUE,
-  "targets.verbose" = TRUE,
-  "targets.max_n_threads" = 12
-)
-
 suppressPackageStartupMessages({
   library(targets)
   library(tarchetypes)
-  # library(crew)
-  # library(mirai)
-  # library(data.table)
-  # library(dplyr)
-  # library(enderecobr)
-  # library(piggyback)
-  # library(purrr)
-  # library(raster)
-  # library(sf)
+  library(crew)
+  library(mirai)
 })
 
-control_max_paralelo <- crew::crew_controller_local(
-  "max_paralelo",
-  workers = getOption("targets.max_n_threads")
+ncores <- floor(.9 * parallelly::freeCores()[1])
+
+options(
+  "piggyback.verbose" = TRUE,
+  "targets.verbose" = TRUE,
+  "targets.max_n_threads" = ncores
 )
 
+# Set target options: ----------------------------------------------------------
 tar_option_set(
-  trust_timestamps = TRUE,
-  controller = crew::crew_controller_group(
-    control_max_paralelo
+  format = "rds",
+  memory = "transient",
+  garbage_collection = TRUE,
+  controller = crew_controller_local(
+    workers = ncores,
+    options_local = crew_options_local(log_directory = "./logs/crew_workers")
   ),
-  resources = tar_resources(
-    crew = tar_resources_crew(controller = "max_paralelo")
+  storage = "worker" ,
+  retrieval = "worker",
+  trust_timestamps = TRUE,
+  error = "null",
+  
+  # Packages essentials --------------------------------------------------------
+  packages = c('arrow',
+               'ipeadatalake',
+               'crew',
+               'data.table',
+               'remotes',
+               'dplyr',
+               'duckdb',
+               'duckspatial',
+               'geobr',
+               'sfheaders',
+               'sf',
+               'lwgeom',
+               'mirai',
+               'parallelly',
+               'piggyback',
+               'purrr',
+               'stringi',
+               'stringr',
+               'mapview',
+               'tarchetypes',
+               'visNetwork'
+               )
   )
-)
 
-tar_source()
+# invisible(lapply(packages, library, character.only = TRUE))
+
+
+tar_source("./R")
 
 list(
-  tar_target(versao_dados, "v0.4.0", deployment = "main"),
   tar_target(
-    codigo_uf,
+    name = versao_dados,
+    command = "v0.5.0",
+    deployment = "main"
+    ),
+
+  tar_target(
+    name = codigo_uf,
     as.integer(enderecobr::codigos_estados$codigo_estado),
     deployment = "main"
   ),
 
+    ## download de dados ----------------------------------------------------------
   tar_target(
-    identificacao_setor,
-    identificar_setores(codigo_uf),
+    name = census_tracts_2022,
+    command = download_census_tracts(2022),
+    format = "file"
+  ),
+
+  # essa funcao identifica o setor censitario ao qual cada endereco pertence
+  tar_target(
+    name = identificacao_setor,
+    command = identificar_setores(codigo_uf, census_tracts_2022),
     pattern = map(codigo_uf),
     format = "file"
   ),
   tar_target(
-    padronizacao,
-    padronizar_cnefe(codigo_uf, versao_dados),
+    name = padronizacao,
+    command = padronizar_cnefe(codigo_uf, versao_dados),
     pattern = map(codigo_uf),
     format = "file"
   ),
   tar_target(
-    agregacao,
-    agregar_cnefe(padronizacao, identificacao_setor, versao_dados),
+    name = agregacao,
+    command = agregar_cnefe(padronizacao, identificacao_setor, versao_dados),
     pattern = map(padronizacao, identificacao_setor),
     format = "file"
   ),
   tar_target(
-    uniao_agregados,
-    unir_cnefe_agregado(agregacao, versao_dados),
+    name = uniao_agregados,
+    command = unir_cnefe_agregado(agregacao, versao_dados),
     format = "file",
     deployment = "main"
-  ),
-  tar_target(
-    upload,
-    upload_arquivos(uniao_agregados, versao_dados),
-    deployment = "main"
   )
+  #,
+  # tar_target(
+  #   name = upload,
+  #   command = upload_arquivos(uniao_agregados, versao_dados),
+  #   deployment = "main"
+  # )
 )
+
+# check errors
+# targets::tar_meta(fields = error, complete_only = TRUE) |> View()
+
+
+# census_tracts_2022 <- tar_read(census_tracts_2022)
+# lapply(
+#   X= tar_read(codigo_uf),
+#   FUN = function(x){
+#
+#     message(x)
+#     identificar_setores(x, census_tracts_2022)
+#
+#   }
+# )
