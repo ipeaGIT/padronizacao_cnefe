@@ -19,14 +19,14 @@ tar_option_set(
   memory = "transient",
   garbage_collection = TRUE,
   controller = crew_controller_local(
-    workers = ncores,
-    options_local = crew_options_local(log_directory = "./logs/crew_workers")
+    workers = ncores
+    #,options_local = crew_options_local(log_directory = "./logs/crew_workers")
   ),
   storage = "worker" ,
   retrieval = "worker",
   trust_timestamps = TRUE,
-  error = "null",
-  
+  # error = "null",
+
   # Packages essentials --------------------------------------------------------
   packages = c('arrow',
                'ipeadatalake',
@@ -66,36 +66,42 @@ list(
 
   tar_target(
     name = codigo_uf,
-    as.integer(enderecobr::codigos_estados$codigo_estado),
+    as.integer(enderecobr::codigos_estados$codigo_estado[1:2]),
     deployment = "main"
   ),
 
-    ## download de dados ----------------------------------------------------------
+  # download da malha de setores de 2022
   tar_target(
     name = census_tracts_2022,
     command = download_census_tracts(2022),
     format = "file"
   ),
 
-  # essa funcao identifica o setor censitario ao qual cada endereco pertence
+  # identifica o setor censitario ao qual cada endereco pertence
   tar_target(
     name = identificacao_setor,
     command = identificar_setores(codigo_uf, census_tracts_2022),
     pattern = map(codigo_uf),
     format = "file"
   ),
+
+  # padroniza cnefe com enderecobr
   tar_target(
     name = padronizacao,
     command = padronizar_cnefe(codigo_uf, versao_dados),
     pattern = map(codigo_uf),
     format = "file"
   ),
+
+  # agrega cnefe para gerar as varias tabelas do geocodebr para cada uf
   tar_target(
     name = agregacao,
     command = agregar_cnefe(padronizacao, identificacao_setor, versao_dados),
     pattern = map(padronizacao, identificacao_setor),
     format = "file"
   ),
+
+  # junta tabela do estados para ter tabelas nacionais
   tar_target(
     name = uniao_agregados,
     command = unir_cnefe_agregado(agregacao, versao_dados),
@@ -103,6 +109,7 @@ list(
     deployment = "main"
   )
   #,
+  ## publica dados no release
   # tar_target(
   #   name = upload,
   #   command = upload_arquivos(uniao_agregados, versao_dados),
