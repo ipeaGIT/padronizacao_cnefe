@@ -1,17 +1,60 @@
 # arq_cnefe <- tar_read(padronizacao, branches = 1)
 # arq_setores <- tar_read(identificacao_setor, branches = 1)
 # versao_dados <- tar_read(versao_dados)
+# census_tracts_2022 <- tar_read(census_tracts_2022)
 agregar_cnefe <- function(arq_cnefe, arq_setores, versao_dados) {
   data.table::setDTthreads(1)
 
   cnefe <- data.table::setDT(arrow::read_parquet(arq_cnefe))
   setores <- data.table::setDT(arrow::read_parquet(arq_setores))
 
+  # recupera info de area do setor (isso vai ser importante no passo de agregacao)
+  temp_area <- readRDS("./data_raw/tracts_info.rds") |>
+    dplyr::select(code_tract_2022, area_km2_2022) |>
+    unique() |>
+    data.table::setDT()
+
+  # atualiza info de setores
   cnefe[
     setores,
     on = c(code_address = "code_address"),
-    `:=`(cod_setor = i.cod_setor, area_km2 = i.area_km2)
+    cod_setor := i.code_sector
   ]
+
+  # traz info da area dps setores de 22
+  cnefe[
+    temp_area,
+    on = c(cod_setor = "code_tract_2022"),
+    area_km2 := i.area_km2_2022
+  ]
+
+  # # calcula area dos setores na unha
+  # codigo_uf <- setores$code_sector[1] |> substr(1,2)
+  #
+  # setores2 <- duckspatial::ddbs_open_dataset(census_tracts_2022) |>
+  #   dplyr::filter(code_state == codigo_uf) |>
+  #   duckspatial::ddbs_transform("EPSG:4326") |>
+  #   duckspatial::ddbs_area(new_column = "area_m2") |>
+  #   duckspatial::ddbs_drop_geometry() |>
+  #   dplyr::mutate(area_km2 = area_m2 / 1e6) |>
+  #   dplyr::select(code_tract, area_km2) |>
+  #   dplyr::collect()
+  #
+  # cnefe[
+  #   setores2,
+  #   on = c(cod_setor = "code_tract"),
+  #   area_km2_unha := i.area_km2
+  # ]
+  #
+  # summary(cnefe$area_km2)
+  # summary(cnefe$area_km2_unha)
+
+ #  cnefe_sem_area <- cnefe |>
+ #    filter(is.na(area_km2_unha))
+ #
+ # cnefe_sem_area <- sf::st_as_sf(cnefe_sem_area, coords = c("lon", "lat"), crs = 4674)
+ #
+# mapview::mapview(cnefe_sem_area) + setoresg
 
   # mantemos apenas endereços com nv_geo_coord <= 4 OU nv_geo_coord 5 e 6 em
   # setores censitarios com area menor ou igual a 0.1 km2 (equivalente a uma
@@ -74,7 +117,8 @@ agregar_cnefe <- function(arq_cnefe, arq_setores, versao_dados) {
         lon = coord_media_duas_etapas(lon, lat, "lon", 0.95),
         lat = coord_media_duas_etapas(lon, lat, "lat", 0.95),
         desvio_metros = desvio_duas_etapas(lon, lat, 0.95),
-        cod_setor = agregar_setor(cod_setor)
+        cod_setor = agregar_setor(cod_setor),
+        n_setor = uniqueN(cod_setor) # Equivalent to dplyr::n_distinct(cod_setor)
       ),
       by = colunas_agregacao
     ]
@@ -114,7 +158,8 @@ agregar_cnefe <- function(arq_cnefe, arq_setores, versao_dados) {
       lon = arrow::float64(),
       lat = arrow::float64(),
       desvio_metros = arrow::float(),
-      cod_setor = arrow::utf8()
+      cod_setor = arrow::utf8(),
+      n_setor = arrow::int32()
     )
 
     schema_arquivo <- schema_cnefe[
@@ -125,7 +170,8 @@ agregar_cnefe <- function(arq_cnefe, arq_setores, versao_dados) {
         "lon",
         "lat",
         "desvio_metros",
-        "cod_setor"
+        "cod_setor",
+        "n_setor"
       )
     ]
 
