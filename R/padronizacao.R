@@ -1,10 +1,12 @@
-#  <- tar_read(codigo_uf)[[1]]
+# codigo_uf <- tar_read(codigo_uf)[[1]]
 # versao_dados <- tar_read(versao_dados)
 padronizar_cnefe <- function(codigo_uf, versao_dados) {
+  
   colunas_a_manter <- c(
     "code_address", # identificador
     "code_state", # estado
     "code_muni", # municipio
+    "code_sector", # setor censitario
     "cep", # cep
     "desc_localidade", # bairro, povoado, vila, etc
     "nom_tipo_seglogr", # tipo de logradouro
@@ -23,11 +25,12 @@ padronizar_cnefe <- function(codigo_uf, versao_dados) {
 
    cnefe <- suppressWarnings(
     ipeadatalake::ler_cnefe(
-      2022,
+      ano = 2022,
       colunas = colunas_a_manter,
       verboso = FALSE
     )) |>
     dplyr::filter(code_state == codigo_uf) |>
+    dplyr::rename(code_tract_cnefe = code_sector) |> 
     unique() # e os predios 6666
 
 
@@ -38,8 +41,7 @@ padronizar_cnefe <- function(codigo_uf, versao_dados) {
   #   )
 
   # se numero == 0, setar NA. mantemos como numerico, pois durante o processo de
-  # geolocalizacao podemos usa-los para fazer uma interpolacao, e para isso
-  # precisamos que seja numerico.
+  # geolocalizacao a interpolacao exige q a coluna seja numerica
 
   cnefe <- dplyr::mutate(
     cnefe,
@@ -156,6 +158,10 @@ padronizar_cnefe <- function(codigo_uf, versao_dados) {
   # camila, checar
   cnefe[, localidade := enderecobr::padronizar_bairros(localidade)]
 
+  # remove the last letter P from code_tract and convert to numeric
+  cnefe[, code_tract_cnefe := stringr::str_remove(code_tract_cnefe, "P$")]
+  cnefe[, code_tract_cnefe := as.numeric(code_tract_cnefe)]
+
   data.table::setcolorder(
     cnefe,
     c(
@@ -170,6 +176,7 @@ padronizar_cnefe <- function(codigo_uf, versao_dados) {
       "lon",
       "lat",
       "code_address",
+      "code_tract_cnefe",
       "nv_geo_coord"
     )
   )
@@ -196,12 +203,13 @@ padronizar_cnefe <- function(codigo_uf, versao_dados) {
     lon = arrow::float64(),
     lat = arrow::float64(),
     code_address = arrow::int32(),
+    code_tract_cnefe = arrow::float64(),
     nv_geo_coord = arrow::int8()
   )
 
   cnefe_arrow <- arrow::as_arrow_table(cnefe, schema = schema_cnefe)
 
-  dir_dados <- file.path("./data/CNEFE/cnefe_padrao_geocodebr")
+  dir_dados <- file.path("./data/cnefe_padrao_geocodebr")
 
   dir_ano <- file.path(dir_dados, "2022", versao_dados, "microdados")
   if (!dir.exists(dir_ano)) {
