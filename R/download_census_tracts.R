@@ -4,11 +4,13 @@ download_census_tracts <- function(year) {
 
   census_tracts <- NULL
 
+  simp <- ifelse(year==2022, FALSE, TRUE)
+
   while (is.null(census_tracts)) {
     census_tracts <- geobr::read_census_tract(
       code_tract = "all",
       year = year,
-      simplified = FALSE,
+      simplified = simp,
       output = "duckdb",
       showProgress = TRUE
       # showProgress = getOption("TARGETS_SHOW_PROGRESS")
