@@ -1,4 +1,4 @@
-# codigo_uf <- 13
+# codigo_uf <- 11
 # census_tracts_2022 <- tar_read(census_tracts_2022)
 # essa funcao identifica o setor censitario ao qual cada endereco pertence
 identificar_setores <- function(codigo_uf, census_tracts_2022) {
@@ -6,9 +6,9 @@ identificar_setores <- function(codigo_uf, census_tracts_2022) {
   # crosswalk de codigo entre setores de 2010 e 2022
   cross_walk <- readRDS("./data_raw/tracts_info.rds")|>
     dplyr::select(code_tract_2022, code_tract_2010) |>
-    dplyr::mutate(code_state = substring(code_tract_2022, 1, 2) |> as.numeric()) |> 
-    dplyr::filter(code_state == codigo_uf) |> 
-    dplyr::select(-code_state) |> 
+    dplyr::mutate(code_state = substring(code_tract_2022, 1, 2) |> as.numeric()) |>
+    dplyr::filter(code_state == codigo_uf) |>
+    dplyr::select(-code_state) |>
     unique()
 
 
@@ -18,7 +18,7 @@ identificar_setores <- function(codigo_uf, census_tracts_2022) {
       dplyr::mutate(
         one_to_n = dplyr::n_distinct(code_tract_2022),
         all_tracts_22 = paste(code_tract_2022, collapse=", " )
-        ) |> 
+        ) |>
     dplyr::ungroup()
 
   # carrega cnefe
@@ -37,34 +37,33 @@ identificar_setores <- function(codigo_uf, census_tracts_2022) {
     # mantemos apenas registros unicos.
   cnefe <- cnefe |>
     dplyr::filter(code_state == codigo_uf) |>
-    unique() |> 
-    dplyr::compute() |> 
+    unique() |>
+    dplyr::compute() |>
     dplyr::mutate(code_sector = stringr::str_remove(code_sector, "P$")) |>
-    dplyr::mutate(code_sector = as.numeric(code_sector)) #|> 
-   #dplyr::collect() 666666666
+    dplyr::mutate(code_sector = as.numeric(code_sector))
 
   # determina casos possiveis de correspendencia entre 2010 e 2022
-  cnefe <- cnefe |> 
+  cnefe <- cnefe |>
     dplyr::mutate(in_22 = code_sector %in% unique(cross_walk$code_tract_2022),
                   in_10 = code_sector %in% unique(cross_walk$code_tract_2010)
-                ) |> 
+                ) |>
     dplyr::mutate(only10 = in_10==T & in_22==F,
                   only22 = in_10==F & in_22==T,
                   both = in_10==T & in_22==T,
                   none = in_10==F & in_22==F
-                ) |> 
+                ) |>
     dplyr::compute()
 
-  # temp_total <- nrow(cnefe)
+  temp_total <- nrow(cnefe)
   # cnefe |>
   #   dplyr::summarize(
   #     dplyr::across(
   #       c(none, only10, only22, both),
   #       ~ sum(.x) / temp_total
   #     )
-  #   ) |> 
+  #   ) |>
   #   dplyr::collect()
-  # 
+  #
   # nacional
   #  none only10 only22  both
   #  3.47   4.47   37.1  54.9
@@ -72,9 +71,10 @@ identificar_setores <- function(codigo_uf, census_tracts_2022) {
 
   # tentativa 1 - simple left join ----------------------------------------------
   # identifica quais setores do cnefe existem na malha de 2022
-  cnefe1_ja_com_setor <- cnefe |> 
+  cnefe1_ja_com_setor <- cnefe |>
     dplyr::filter(in_22 == TRUE) |>
-    dplyr::select(code_address, code_sector) |> 
+    dplyr::select(code_address, code_sector) |>
+    dplyr::mutate(step = 1) |>
     dplyr::collect()
 
   # cria cnefe_ainda_sem_setor
@@ -99,7 +99,7 @@ identificar_setores <- function(codigo_uf, census_tracts_2022) {
   #' e aqui https://github.com/ipeaGIT/padronizacao_cnefe/releases/download/v0.5.0/cross_walk_setores_censitarios_2010_2022.parquet
 
   if (nrow(cnefe_ainda_sem_setor)>0) {
-    
+
     # detecta casos onde um setor de 2010 virou dois setores de 2022
     # fica apenas com casos de 1 pra 1
     cross_walk_one2one <- cross_walk |>
@@ -125,20 +125,21 @@ identificar_setores <- function(codigo_uf, census_tracts_2022) {
 
     cnefe2_com_setor_crosswalk_one2one <- temp_cross |>
       dplyr::select(-code_sector) |> # dropa setor original do cnefe para ficarmos com o encontrado
-      dplyr::select(code_address, code_sector = code_tract_2022) |> 
+      dplyr::select(code_address, code_sector = code_tract_2022) |>
+      dplyr::mutate(step = 2) |>
       dplyr::collect()
 
     # atualiza cnefe_ainda_sem_setor
     cnefe_ainda_sem_setor <- cnefe_ainda_sem_setor |>
-      dplyr::filter_out(code_address %in% cnefe2_com_setor_crosswalk_one2one$code_address) |> 
+      dplyr::filter_out(code_address %in% cnefe2_com_setor_crosswalk_one2one$code_address) |>
       dplyr::collect()
   }
 
   # Malha de setores de 22 ----------------------------------------------
-  
+
   # open census tracts
-  setores <- duckspatial::ddbs_open_dataset(census_tracts_2022) |> 
-    dplyr::filter(code_state == codigo_uf) |> 
+  setores <- duckspatial::ddbs_open_dataset(census_tracts_2022) |>
+    dplyr::filter(code_state == codigo_uf) |>
     duckspatial::ddbs_collect()
 
   # adiciona os codigos de setores de 2010
@@ -151,7 +152,7 @@ identificar_setores <- function(codigo_uf, census_tracts_2022) {
   # coloca malha de setores no duckdb
   con <- duckspatial::ddbs_create_conn("tempdir")
   on.exit(duckdb::dbDisconnect(con), add = TRUE)
-  
+
   duckspatial::ddbs_write_table(con, setores, "setores", overwrite = TRUE)
 
   # daqui pra frente começam as operações espaciais
@@ -165,7 +166,7 @@ identificar_setores <- function(codigo_uf, census_tracts_2022) {
   # vamos pegar o setor mais proximo dentrod o mesmo municipio
 
   if (nrow(cnefe_ainda_sem_setor)>0) {
-    
+
     # detecta casos onde um setor de 2010 virou dois ou mais setores de 2022
     # fica apenas com casos de 1 pra 1
     cross_walk_one2many <- cross_walk |>
@@ -173,11 +174,11 @@ identificar_setores <- function(codigo_uf, census_tracts_2022) {
       dplyr::select(-one_to_n, -all_tracts_22)
 
     # pontos do cnefe ainda sem setor, e cujo setor de 2010 virou mais de um setor em 22
-    cnefe_one2many <- cnefe_ainda_sem_setor |> 
-      dplyr::filter(code_sector %in% cross_walk_one2many$code_tract_2010) |> 
-      dplyr::mutate(code_muni = substring(code_sector, 1, 7) |> as.numeric()) |> 
+    cnefe_one2many <- cnefe_ainda_sem_setor |>
+      dplyr::filter(code_sector %in% cross_walk_one2many$code_tract_2010) |>
+      dplyr::mutate(code_muni = substring(code_sector, 1, 7) |> as.numeric()) |>
       dplyr::select(code_muni, code_address, code_sector, geometry)
-    
+
     duckspatial::ddbs_write_table(con, cnefe_one2many, "cnefe_one2many", overwrite = TRUE)
 
     # query
@@ -194,12 +195,13 @@ identificar_setores <- function(codigo_uf, census_tracts_2022) {
           ON c.code_sector = s.code_tract_2010
       QUALIFY ROW_NUMBER() OVER (
           PARTITION BY c.code_address
-          
-          ORDER BY ST_Distance(c.geometry, s.geometry)
-          ) = 1;") 
 
-    cnefe3_com_setor_crosswalk_one2many <- DBI::dbGetQuery(con, q1)
-    
+          ORDER BY ST_Distance(c.geometry, s.geometry)
+          ) = 1;")
+
+    cnefe3_com_setor_crosswalk_one2many <- DBI::dbGetQuery(con, q1) |>
+      dplyr::mutate(step = 3)
+
     # checa se ainda teve algum caso de um setor de 2010 virar dois setores de 2022
     if(isFALSE( nrow(cnefe3_com_setor_crosswalk_one2many) == nrow(cnefe_one2many))) {
       stop("erro no match de one 2010 to many 2022")
@@ -215,7 +217,7 @@ identificar_setores <- function(codigo_uf, census_tracts_2022) {
 
 
   # tentativa 4 - join espacial ----------------------------------------------
-  
+
   # para os casos do cnefe cujo setor nao foi encontrado, vamos fazer join
   # espacial para identificar o setor em que cada observação do cnefe se encontra
 
@@ -223,20 +225,22 @@ identificar_setores <- function(codigo_uf, census_tracts_2022) {
 
     temp_join <- duckspatial::ddbs_join(
       x = cnefe_ainda_sem_setor,
-      y = "setores", 
+      y = "setores",
       join = 'within',
       conn = con
       ) |>
-      duckspatial::ddbs_drop_geometry() |> 
-      dplyr::select(code_address, code_sector, code_tract) |> 
-      dplyr::collect() |> 
+      duckspatial::ddbs_drop_geometry() |>
+      dplyr::select(code_address, code_sector, code_tract) |>
+      dplyr::collect() |>
       unique()
 
     if (nrow(temp_join)>0) {
       cnefe4_com_setor_join <- temp_join |>
         dplyr::filter_out(is.na(code_tract)) |> # mantem apenas os encontrados
         dplyr::select(-code_sector) |>  # dropa o codigo do setor q estava registrado no cnefe
-        dplyr::select(code_address, code_sector = code_tract) 
+        dplyr::select(code_address, code_sector = code_tract) |>
+        dplyr::mutate(step = 4)
+
         }
 
     # atualiza cnefe_ainda_sem_setor
@@ -255,10 +259,10 @@ identificar_setores <- function(codigo_uf, census_tracts_2022) {
   if (nrow(cnefe_ainda_sem_setor) > 0) {
 
     # pontos do cnefe ainda sem setor, e cujo setor de 2010 virou mais de um setor em 22
-    cnefe_none <- cnefe_ainda_sem_setor |> 
-      dplyr::mutate(code_muni = substring(code_sector, 1, 7) |> as.numeric()) |> 
+    cnefe_none <- cnefe_ainda_sem_setor |>
+      dplyr::mutate(code_muni = substring(code_sector, 1, 7) |> as.numeric()) |>
       dplyr::select(code_muni, code_address, code_sector, geometry)
-    
+
     duckspatial::ddbs_write_table(con, cnefe_none, "cnefe_none", overwrite = TRUE)
 
     # query
@@ -276,10 +280,11 @@ identificar_setores <- function(codigo_uf, census_tracts_2022) {
       QUALIFY ROW_NUMBER() OVER (
           PARTITION BY c.code_address
           ORDER BY ST_Distance(c.geometry, s.geometry)
-          ) = 1;") 
+          ) = 1;")
 
-    cnefe5_com_setor_dist <- DBI::dbGetQuery(con, q2)
-    
+    cnefe5_com_setor_dist <- DBI::dbGetQuery(con, q2) |>
+      dplyr::mutate(step = 5)
+
     # base de cnefe_ainda_sem_setor deve ter 0 linhas
     cnefe_ainda_sem_setor <- cnefe_ainda_sem_setor |>
       dplyr::filter_out(code_address %in% cnefe5_com_setor_dist$code_address)
@@ -287,7 +292,7 @@ identificar_setores <- function(codigo_uf, census_tracts_2022) {
     if(nrow(cnefe_ainda_sem_setor) != 0) {
       stop('erro: ainda tem ponto cnefe sem setor cnefe5_com_setor_dist')
     }
-  
+
   }
 
   # junta todas tentativas ----------------------------------------------
