@@ -66,7 +66,7 @@ list(
 
   tar_target(
     name = codigo_uf,
-    as.integer(enderecobr::codigos_estados$codigo_estado[1:2]),
+    as.integer(enderecobr::codigos_estados$codigo_estado),
     deployment = "main"
   ),
 
