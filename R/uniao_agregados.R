@@ -30,8 +30,7 @@ unir_cnefe_agregado <- function(arqs_agregados, versao_dados) {
       )
 
       dir_agr <- file.path(
-        Sys.getenv("PUBLIC_DATA_PATH"),
-        "CNEFE/cnefe_padrao_geocodebr/2022",
+        "./data/CNEFE/cnefe_padrao_geocodebr/2022",
         versao_dados,
         "dados_agregados"
       )

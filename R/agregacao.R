@@ -140,6 +140,10 @@ agregar_cnefe <- function(arq_cnefe, arq_setores, versao_dados) {
       c(colunas_agregacao, "endereco_completo", "n_casos", "lon", "lat")
     )
 
+    # arredondar coordenadas para 6 casas decimais
+    cnefe_agregado[, lat := round(lat, 6)]
+    cnefe_agregado[, lon := round(lon, 6)]
+
     # removendo indice do datatable e convertendo pra dataframe, para diminuir o
     # tamanho do objeto final e evitar problemas na leitura do parquet
 
@@ -149,17 +153,18 @@ agregar_cnefe <- function(arq_cnefe, arq_setores, versao_dados) {
     schema_cnefe <- arrow::schema(
       estado = arrow::string(),
       municipio = arrow::string(),
+      # colocar coluna de código do município 666
       localidade = arrow::string(),
       cep = arrow::string(),
       numero = arrow::int32(),
       logradouro = arrow::large_utf8(),
       endereco_completo = arrow::large_utf8(),
       n_casos = arrow::int32(),
-      lon = arrow::float64(),
-      lat = arrow::float64(),
+      lon = arrow::float(),
+      lat = arrow::float(),
       desvio_metros = arrow::float(),
-      cod_setor = arrow::utf8(),
-      n_setor = arrow::int32()
+      cod_setor = arrow::int64(),
+      n_setor = arrow::int16()
     )
 
     schema_arquivo <- schema_cnefe[
@@ -192,8 +197,7 @@ agregar_cnefe <- function(arq_cnefe, arq_setores, versao_dados) {
     sigla_uf <- sub("estado=", "", sigla_uf)
 
     dir_estado <- file.path(
-      Sys.getenv("PUBLIC_DATA_PATH"),
-      "CNEFE/cnefe_padrao_geocodebr/2022",
+      "./data/CNEFE/cnefe_padrao_geocodebr/2022",
       versao_dados,
       "dados_agregados_particionados",
       nome_agregacao,
@@ -352,13 +356,8 @@ desvio_duas_etapas <- function(lon, lat, percentil) {
 
   esta_dentro_do_limite <- dists <= limite_distancia
 
-  # FIXME: ISSO AQUI ESTÁ CORRETO? FALAR COM O RAFA DEPOIS
-  # não era pra pegar os pontos que ambos lat e lon estão dentro do percentil
-  # 95? do jeito que está hoje em dia, estão sendo criados pontos que não
-  # existem na prática
-
   lon_p95 <- lon[esta_dentro_do_limite]
-  lat_p95 <- lon[esta_dentro_do_limite]
+  lat_p95 <- lat[esta_dentro_do_limite]
 
   pontos_p95 <- matrix(c(lon_p95, lat_p95), ncol = 2)
   centroide_p95 <- matrix(c(mean(lon_p95), mean(lat_p95)), ncol = 2)
@@ -523,7 +522,7 @@ agregar_setor <- function(cod_setor) {
     return(vetor_setores)
   }
 
-  return(NA_character_)
+  return(NA_real_)
 }
 
 get_N_census_tracts <- function(code_tract_vec) {

@@ -126,7 +126,7 @@ padronizar_cnefe <- function(codigo_uf, versao_dados) {
   # camila, checar
   cnefe[, logradouro := stringr::str_replace(
     logradouro,
-    pattern = "EDF ",
+    pattern = "^EDF ",
     replacement = "")
   ]
 
@@ -209,7 +209,7 @@ padronizar_cnefe <- function(codigo_uf, versao_dados) {
 
   cnefe_arrow <- arrow::as_arrow_table(cnefe, schema = schema_cnefe)
 
-  dir_dados <- file.path("./data/cnefe_padrao_geocodebr")
+  dir_dados <- file.path("./data/CNEFE/cnefe_padrao_geocodebr")
 
   dir_ano <- file.path(dir_dados, "2022", versao_dados, "microdados")
   if (!dir.exists(dir_ano)) {
